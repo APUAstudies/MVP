@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+.next/
+out/
+dist/
+.vercel
+
+# Environment variables
+.env*
+!.env.example
+*.pem
+*.key
+
+# logs & OS
+.DS_Store
+*.log
+.vscode/
+.idea/
