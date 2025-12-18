@@ -40,7 +40,7 @@ export const navLinks: NavItem[] = [
     description: "Find the best tools to make your life more productive",
     icon: '🛠️',
     subItems: [
-      { label: 'Favorites', href: '/tools/extensions', category: '' },
+      { label: 'Favorites', href: '/tools', category: '' },
       { label: 'Chrome Extensions', href: '/tools/extensions', category: 'Resources' },
       { label: 'Websites', href: '/tools/websites', category: 'Resources' },
       { label: 'Our Tools', href: '/tools/custom', category: 'Resources' },
