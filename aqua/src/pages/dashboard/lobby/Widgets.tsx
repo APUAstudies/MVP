@@ -1,9 +1,30 @@
 import { useState, useEffect, useRef } from "react";
+import { 
+  DndContext, 
+  closestCorners, 
+  PointerSensor, 
+  useSensor, 
+  useSensors,
+  DragOverlay,
+  defaultDropAnimationSideEffects
+} from '@dnd-kit/core';
+import { 
+  SortableContext, 
+  verticalListSortingStrategy, 
+  useSortable,
+  arrayMove 
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { GripVertical } from "lucide-react";
 
 interface WidgetProps {
   onFocus?: () => void;
   onSlash?: () => void;
   setFilterText?: (text: string) => void;
+  onCommandEnter?: () => void;
+  onCancelSlash?: () => void;
+  onAddBelow?: () => void;
+  autoFocus?: boolean;
 }
 
 // --- CALLOUT ---
@@ -31,9 +52,10 @@ export const TextBoxWidget = ({
   onCancelSlash,
   onAddBelow,
   autoFocus
-}: any) => {
+}: WidgetProps) => {
   const [text, setText] = useState("");
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
+
   useEffect(() => {
     if (autoFocus && textAreaRef.current) {
       textAreaRef.current.focus();
@@ -50,13 +72,13 @@ export const TextBoxWidget = ({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && text.includes('/')) {
       e.preventDefault();
-      onCommandEnter();
+      onCommandEnter?.();
       return;
     }
 
     if (e.key === 'Enter' && text.trim() === "") {
       e.preventDefault();
-      onAddBelow();
+      onAddBelow?.();
     }
   };
 
@@ -68,11 +90,11 @@ export const TextBoxWidget = ({
     if (lastSlashIndex !== -1) {
       const query = val.slice(lastSlashIndex + 1);
       if (!query.includes(' ')) {
-        setFilterText(query);
-        onSlash();
+        setFilterText?.(query);
+        onSlash?.();
       }
     } else {
-      onCancelSlash();
+      onCancelSlash?.();
     }
   };
 
@@ -83,7 +105,7 @@ export const TextBoxWidget = ({
       onFocus={onFocus}
       onKeyDown={handleKeyDown}
       onChange={handleChange}
-      onBlur={() => setTimeout(onCancelSlash, 200)}
+      onBlur={() => setTimeout(() => onCancelSlash?.(), 200)}
       placeholder="Type '/' for commands..."
       className="w-full bg-transparent border-none outline-none text-white resize-none text-sm min-h-[30px]"
     />
@@ -125,7 +147,7 @@ export const VideoWidget = ({ onFocus }: WidgetProps) => {
       <iframe 
         src="https://www.youtube.com/embed/jfKfPfyJRdk" 
         className="w-full h-full pointer-events-auto" 
-        frameBorder="0" 
+        style={{ border: 0 }}
         allowFullScreen 
       />
     </div>
@@ -150,30 +172,167 @@ export const EmbedWidget = ({ onFocus }: WidgetProps) => (
 );
 
 // --- TODO ---
-export const TodoWidget = ({ onFocus }: WidgetProps) => {
-  const [tasks, setTasks] = useState([{ id: 1, text: "New Task", done: false }]);
+const SortableTask = ({ task, setTasks, tasks, handleKeyDown, isOver, activeId }: any) => {
+  const { 
+    attributes, 
+    listeners, 
+    setNodeRef, 
+    transform, 
+    transition, 
+    isDragging 
+  } = useSortable({ id: task.id });
 
-  const addTask = () => setTasks([...tasks, { id: Date.now(), text: "", done: false }]);
-  
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+    opacity: isDragging ? 0.3 : 1,
+    position: 'relative' as const,
+  };
+
   return (
-    <div className="space-y-2" onFocus={onFocus}>
-      {tasks.map((task) => (
-        <div key={task.id} className="flex items-center gap-2 group">
+    <div ref={setNodeRef} style={style} className="group flex flex-col w-full">
+      {isOver && activeId !== task.id && (
+        <div 
+          className="absolute -top-[1px] left-0 right-0 h-[2px] bg-blue-500 z-50 pointer-events-none"
+          style={{ 
+            marginLeft: `${task.indent * 24}px`, 
+            width: `calc(100% - ${task.indent * 24}px)` 
+          }}
+        />
+      )}
+
+      <div 
+        className="flex items-center gap-1 py-1"
+        style={{ paddingLeft: `${task.indent * 24}px` }}
+      >
+        <div 
+          {...attributes} 
+          {...listeners} 
+          className="opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing p-1 text-white/20 hover:text-white/60 transition-opacity"
+        >
+          <GripVertical size={14} />
+        </div>
+
+        <div className="flex items-center justify-center w-5 h-5 shrink-0">
           <input 
             type="checkbox" 
             checked={task.done} 
-            onChange={() => setTasks(tasks.map(t => t.id === task.id ? {...t, done: !t.done} : t))}
-            className="accent-blue-500 w-4 h-4" 
-          />
-          <input 
-            value={task.text}
-            onChange={(e) => setTasks(tasks.map(t => t.id === task.id ? {...t, text: e.target.value} : t))}
-            placeholder="To-do"
-            className={`bg-transparent border-none outline-none text-sm w-full ${task.done ? 'line-through text-white/40' : 'text-white'}`}
+            onChange={() => setTasks(tasks.map((t: any) => t.id === task.id ? {...t, done: !t.done} : t))}
+            className="accent-blue-500 w-4 h-4 cursor-pointer" 
           />
         </div>
-      ))}
-      <button onClick={addTask} className="text-[10px] text-white/40 hover:text-white mt-2">+ Add item</button>
+        
+        <input 
+          value={task.text}
+          onKeyDown={(e) => handleKeyDown(e, task.id, task.text, task.indent)}
+          onChange={(e) => setTasks(tasks.map((t: any) => t.id === task.id ? {...t, text: e.target.value} : t))}
+          placeholder="To-do"
+          className={`bg-transparent border-none outline-none text-sm w-full ${
+            task.done ? 'line-through text-white/40' : 'text-white'
+          }`}
+        />
+      </div>
+    </div>
+  );
+};
+
+export const TodoWidget = ({ onFocus }: WidgetProps) => {
+  const [tasks, setTasks] = useState([
+    { id: 1, text: "Task 1", done: false, indent: 0 },
+    { id: 2, text: "Task 2", done: false, indent: 1 }
+  ]);
+  const [activeId, setActiveId] = useState<number | null>(null);
+  const [overId, setOverId] = useState<number | null>(null);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  const handleDragStart = (event: any) => setActiveId(event.active.id);
+  const handleDragOver = (event: any) => setOverId(event.over?.id || null);
+  const handleDragEnd = (event: any) => {
+  const { active, over } = event;
+
+  if (over && active.id !== over.id) {
+    setTasks((items) => {
+      const oldIndex = items.findIndex((t) => t.id === active.id);
+      const newIndex = items.findIndex((t) => t.id === over.id);
+      const newItems = [...items];
+      const targetIndent = items[newIndex].indent;
+      newItems[oldIndex] = { ...newItems[oldIndex], indent: targetIndent };
+
+      return arrayMove(newItems, oldIndex, newIndex);
+    });
+  }
+  
+  setActiveId(null);
+  setOverId(null);
+};
+
+  const addTask = (afterId?: number) => {
+    const newTask = { id: Date.now(), text: "", done: false, indent: 0 };
+    if (afterId) {
+      const idx = tasks.findIndex(t => t.id === afterId);
+      const newTasks = [...tasks];
+      newTask.indent = tasks[idx].indent;
+      newTasks.splice(idx + 1, 0, newTask);
+      setTasks(newTasks);
+    } else {
+      setTasks([...tasks, newTask]);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent, taskId: number, taskText: string, taskIndent: number) => {
+    if (e.key === "Tab") {
+      e.preventDefault(); 
+      e.stopPropagation(); 
+      setTasks(prevTasks => prevTasks.map(t => {
+        if (t.id === taskId) {
+          const newIndent = e.shiftKey ? Math.max(0, t.indent - 1) : Math.min(4, t.indent + 1);
+          return { ...t, indent: newIndent };
+        }
+        return t;
+      }));
+    }
+
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addTask(taskId);
+    }
+
+    if (e.key === "Backspace" && taskText === "" && taskIndent > 0) {
+      e.preventDefault();
+      setTasks(prevTasks => prevTasks.map(t => t.id === taskId ? { ...t, indent: t.indent - 1 } : t));
+    }
+  };
+
+  return (
+    <div className="space-y-1 py-1" onFocus={onFocus}>
+      <DndContext 
+        sensors={sensors} 
+        collisionDetection={closestCorners} 
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+          {tasks.map((task) => (
+            <SortableTask 
+              key={task.id} 
+              task={task} 
+              tasks={tasks} 
+              setTasks={setTasks} 
+              handleKeyDown={handleKeyDown} 
+              isOver={overId === task.id}
+              activeId={activeId}
+            />
+          ))}
+        </SortableContext>
+      </DndContext>
+
+      <button 
+        onClick={() => addTask()} 
+        className="text-[10px] text-white/40 hover:text-white mt-2 ml-7 transition-colors flex items-center gap-1"
+      >
+        <span>+</span> Add item
+      </button>
     </div>
   );
 };
