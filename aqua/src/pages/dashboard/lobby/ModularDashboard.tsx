@@ -24,7 +24,7 @@ export const ModularDashboard = () => {
   const [rows, setRows] = useState<LobbyRow[]>([
     { id: "row-1", columns: [{ id: "c1", width: 100, blocks: [{ id: "b1", type: "text" }] }] }
   ]);
-
+  const [focusTargetId, setFocusTargetId] = useState<string | null>(null);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [menuType, setMenuType] = useState<'slash' | null>(null);
   const [filterText, setFilterText] = useState("");
@@ -160,7 +160,22 @@ export const ModularDashboard = () => {
   };
 
   const deleteBlock = (rowId: string, colId: string, blockId: string) => {
-    setRows(prev => prev.map(row => {
+  setRows(prev => {
+    let targetId: string | null = null;
+    const currentRow = prev.find(r => r.id === rowId);
+    const currentCol = currentRow?.columns.find(c => c.id === colId);
+    
+    if (currentCol) {
+      const idx = currentCol.blocks.findIndex(b => b.id === blockId);
+      if (idx > 0) {
+        targetId = currentCol.blocks[idx - 1].id;
+      } else {
+        // Find previous row/column logic can be added here
+      }
+    }
+    setFocusTargetId(targetId);
+
+    return prev.map(row => {
       if (row.id !== rowId) return row;
       const updatedCols = row.columns.map(col => {
         if (col.id !== colId) return col;
@@ -169,7 +184,26 @@ export const ModularDashboard = () => {
 
       const newWidth = 100 / updatedCols.length;
       return { ...row, columns: updatedCols.map(c => ({ ...c, width: newWidth })) };
-    }).filter(r => r.columns.length > 0));
+    }).filter(r => r.columns.length > 0);
+  });
+};
+
+  const updateBlockType = (rowId: string, colId: string, blockId: string, newType: string) => {
+    setRows(prev => prev.map(row => {
+      if (row.id !== rowId) return row;
+      return {
+        ...row,
+        columns: row.columns.map(col => {
+          if (col.id !== colId) return col;
+          return {
+            ...col,
+            blocks: col.blocks.map(block => 
+              block.id === blockId ? { ...block, type: newType } : block
+            )
+          };
+        })
+      };
+    }));
   };
 
   const renderBlock = (block: LobbyBlock, rowId: string, colId: string) => {
@@ -178,13 +212,15 @@ export const ModularDashboard = () => {
       onSlash: () => setMenuType('slash'),
       setFilterText: setFilterText,
       onCancelSlash: () => setMenuType(null),
-      autoFocus: (block as any).autoFocus,
+      autoFocus: block.id === focusTargetId || (block as any).autoFocus,
       onCommandEnter: () => {
         if (filteredBlocks.length > 0) {
           selectBlock(filteredBlocks[0].id);
         }
       },
-      onAddBelow: () => addBlockInColumn(rowId, colId, block.id) 
+      onAddBelow: () => addBlockInColumn(rowId, colId, block.id),
+      onDeleteBlock: () => deleteBlock(rowId, colId, block.id),
+      onConvertToText: () => updateBlockType(rowId, colId, block.id, 'text'),
     };
 
     switch (block.type) {

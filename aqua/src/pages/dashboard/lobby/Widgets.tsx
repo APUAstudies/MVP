@@ -4,9 +4,7 @@ import {
   closestCorners, 
   PointerSensor, 
   useSensor, 
-  useSensors,
-  DragOverlay,
-  defaultDropAnimationSideEffects
+  useSensors
 } from '@dnd-kit/core';
 import { 
   SortableContext, 
@@ -24,6 +22,8 @@ interface WidgetProps {
   onCommandEnter?: () => void;
   onCancelSlash?: () => void;
   onAddBelow?: () => void;
+  onDeleteBlock?: () => void;
+  onConvertToText?: () => void;
   autoFocus?: boolean;
 }
 
@@ -51,6 +51,7 @@ export const TextBoxWidget = ({
   onCommandEnter, 
   onCancelSlash,
   onAddBelow,
+  onDeleteBlock,
   autoFocus
 }: WidgetProps) => {
   const [text, setText] = useState("");
@@ -59,6 +60,8 @@ export const TextBoxWidget = ({
   useEffect(() => {
     if (autoFocus && textAreaRef.current) {
       textAreaRef.current.focus();
+      const length = textAreaRef.current.value.length;
+      textAreaRef.current.setSelectionRange(length, length);
     }
   }, [autoFocus]);
 
@@ -80,6 +83,11 @@ export const TextBoxWidget = ({
       e.preventDefault();
       onAddBelow?.();
     }
+
+      if (e.key === 'Backspace' && text === "") {
+        e.preventDefault();
+        onDeleteBlock?.();
+      }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -236,10 +244,9 @@ const SortableTask = ({ task, setTasks, tasks, handleKeyDown, isOver, activeId }
   );
 };
 
-export const TodoWidget = ({ onFocus }: WidgetProps) => {
+export const TodoWidget = ({ onFocus, onConvertToText }: WidgetProps) => { 
   const [tasks, setTasks] = useState([
-    { id: 1, text: "Task 1", done: false, indent: 0 },
-    { id: 2, text: "Task 2", done: false, indent: 1 }
+    { id: 1, text: "", done: false, indent: 0 }
   ]);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [overId, setOverId] = useState<number | null>(null);
@@ -297,9 +304,24 @@ export const TodoWidget = ({ onFocus }: WidgetProps) => {
       addTask(taskId);
     }
 
-    if (e.key === "Backspace" && taskText === "" && taskIndent > 0) {
-      e.preventDefault();
-      setTasks(prevTasks => prevTasks.map(t => t.id === taskId ? { ...t, indent: t.indent - 1 } : t));
+    if (e.key === "Backspace") {
+      if (taskText === "") {
+        e.preventDefault();
+
+        if (taskIndent > 0) {
+          setTasks(prev => prev.map(t => t.id === taskId ? { ...t, indent: t.indent - 1 } : t));
+          return;
+        }
+
+        if (tasks.length === 1) {
+          onConvertToText?.(); 
+          return;
+        }
+
+        const currentIndex = tasks.findIndex(t => t.id === taskId);
+        const newTasks = tasks.filter(t => t.id !== taskId);
+        setTasks(newTasks);
+      }
     }
   };
 
@@ -326,13 +348,6 @@ export const TodoWidget = ({ onFocus }: WidgetProps) => {
           ))}
         </SortableContext>
       </DndContext>
-
-      <button 
-        onClick={() => addTask()} 
-        className="text-[10px] text-white/40 hover:text-white mt-2 ml-7 transition-colors flex items-center gap-1"
-      >
-        <span>+</span> Add item
-      </button>
     </div>
   );
 };
