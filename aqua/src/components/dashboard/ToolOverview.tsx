@@ -1,4 +1,4 @@
-import { chromeExtensions, usefulWebsites } from "../../ToolsConfig";
+import { chromeExtensions, usefulWebsites } from "../../configs/ToolsConfig";
 import { ToolCard } from "./ToolCard";
 
 export const ToolsOverview = () => {

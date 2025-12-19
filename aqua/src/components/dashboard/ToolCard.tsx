@@ -1,4 +1,4 @@
-import type { ToolItem } from "../../ToolsConfig";
+import type { ToolItem } from "../../configs/ToolsConfig";
 
 export const ToolCard = ({ tool }: { tool: ToolItem }) => (
   <div className="bg-[var(--bg-sidebar)] border border-[var(--border-color)] rounded-xl p-5 hover:border-[var(--primary)] transition-all flex flex-col gap-3 group">

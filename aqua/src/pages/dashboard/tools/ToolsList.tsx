@@ -1,6 +1,6 @@
 import { ToolCard } from "../../../components/dashboard/ToolCard";
-import { chromeExtensions, usefulWebsites } from "../../../ToolsConfig";
-import type { ToolItem } from "../../../ToolsConfig";
+import { chromeExtensions, usefulWebsites } from "../../../configs/ToolsConfig";
+import type { ToolItem } from "../../../configs/ToolsConfig";
 
 interface ToolsListProps {
   type: 'extensions' | 'websites' | 'custom' | 'favorites' | 'suggest';

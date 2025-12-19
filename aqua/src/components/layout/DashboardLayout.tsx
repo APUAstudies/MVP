@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { navLinks } from "../../navConfig";
+import { navLinks } from "../../configs/navConfig";
 import { TopNav } from "./TopNav";
 
 export const DashboardLayout = () => {
