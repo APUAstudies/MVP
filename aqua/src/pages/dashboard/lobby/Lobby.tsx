@@ -50,8 +50,7 @@ export const WidgetWrapper = ({
         <div className="relative">
           <button 
             onClick={() => setShowMenu(!showMenu)}
-            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded text-white/40 hover:text-white transition-opacity"
-          >
+            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded text-white/40 hover:text-white transition-opacity">
             <Settings2 size={16} />
           </button>
 

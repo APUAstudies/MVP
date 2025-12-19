@@ -39,11 +39,9 @@ export const ModularDashboard = () => {
         ...row,
         columns: row.columns.map(col => {
           const bIdx = col.blocks.findIndex(b => b.id === active.id);
-          if (bIdx !== -1) {
-            [movedBlock] = col.blocks.splice(bIdx, 1);
-          }
-          return { ...col, blocks: [...col.blocks] };
-        }).filter(col => col.blocks.length > 0 || row.columns.length > 1) 
+          if (bIdx !== -1) [movedBlock] = col.blocks.splice(bIdx, 1);
+            return { ...col, blocks: [...col.blocks] };
+        }).filter(col => col.blocks.length > 0 || row.columns.length > 1)
       })).filter(r => r.columns.some(c => c.blocks.length > 0)); 
 
       if (!movedBlock) return currentRows;
@@ -71,28 +69,49 @@ export const ModularDashboard = () => {
         })
       }));
     });
-
     setActiveBlockId(null);
   };
 
   const splitBlockToColumns = (rowIndex: number, colId: string, blockId: string) => {
     setRows(prev => {
       const newRows = [...prev];
-      const currentRow = newRows[rowIndex];
-      const currentCol = currentRow.columns.find(c => c.id === colId);
-      
-      if (!currentCol) return prev;
-      const blockIdx = currentCol.blocks.findIndex(b => b.id === blockId);
-      const [blockToSplit] = currentCol.blocks.splice(blockIdx, 1);
-      const splitRow: LobbyRow = {
+      const rowToSplit = newRows[rowIndex];
+      const colToSplit = rowToSplit.columns.find(c => c.id === colId);
+      if (!colToSplit) return prev;
+      const blockIdx = colToSplit.blocks.findIndex(b => b.id === blockId);
+      if (blockIdx === -1) return prev;
+
+      // blocks above the target
+      const blocksAbove = colToSplit.blocks.slice(0, blockIdx);
+      // target block itself
+      const targetBlock = colToSplit.blocks[blockIdx];
+      // blocks below the target
+      const blocksBelow = colToSplit.blocks.slice(blockIdx + 1);
+      const splitResult: LobbyRow[] = [];
+
+      if (blocksAbove.length > 0) {
+        splitResult.push({
+          id: `row-top-${Date.now()}`,
+          columns: [{ ...colToSplit, id: `c-top-${Date.now()}`, blocks: blocksAbove }]
+        });
+      }
+
+      splitResult.push({
         id: `row-split-${Date.now()}`,
         columns: [
-          { id: `c1-${Date.now()}`, width: 50, blocks: [blockToSplit] },
-          { id: `c2-${Date.now()}`, width: 50, blocks: [{ id: `b-new-${Date.now()}`, type: 'text' }] }
+          { id: `c1-${Date.now()}`, width: 50, blocks: [targetBlock] },
+          { id: `c2-${Date.now()}`, width: 50, blocks: [{ id: `b-empty-${Date.now()}`, type: 'text' }] }
         ]
-      };
-      newRows.splice(rowIndex + 1, 0, splitRow);
-      return newRows.filter(r => r.columns.some(c => c.blocks.length > 0));
+      });
+
+      if (blocksBelow.length > 0) {
+        splitResult.push({
+          id: `row-btm-${Date.now()}`,
+          columns: [{ ...colToSplit, id: `c-btm-${Date.now()}`, blocks: blocksBelow }]
+        });
+      }
+      newRows.splice(rowIndex, 1, ...splitResult);
+      return newRows;
     });
   };
 
@@ -126,10 +145,7 @@ export const ModularDashboard = () => {
   };
 
   const renderBlock = (block: LobbyBlock) => {
-    const p = { 
-      onFocus: () => setActiveBlockId(block.id), 
-      onSlash: () => setMenuType('slash') 
-    };
+    const p = { onFocus: () => setActiveBlockId(block.id), onSlash: () => setMenuType('slash') };
     switch (block.type) {
       case "timer": return <TimerWidget {...p} />;
       case "todo": return <TodoWidget {...p} />;
@@ -161,9 +177,7 @@ export const ModularDashboard = () => {
 
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleManualReorder}>
         <div className="flex flex-col max-w-7xl mx-auto w-full">
-          
           <RowDropZone id="dropzone-0" />
-
           {rows.map((row, rIdx) => (
             <div key={row.id} className="flex flex-col w-full">
               <div className="flex gap-4 w-full items-start">
