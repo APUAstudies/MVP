@@ -26,10 +26,10 @@ export const navLinks: NavItem[] = [
   { 
     label: 'Lobby',
     href: '/lobby',
-    description: "Focus on tasks, write notes, and study together with friends.",
+    description: "Focus on tasks, write notes, and focus together with friends.",
     icon: '📚',
     subItems: [
-      { label: 'Study', href: '/lobby', category: 'Study Tools' },
+      { label: 'Notebook', href: '/lobby', category: 'Study Tools' },
       { label: 'Help', href: '/lobby/help', category: 'Study Tools' },
       { label: 'Groups', href: '/lobby/groups', category: 'Social' }
     ]

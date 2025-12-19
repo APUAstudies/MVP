@@ -25,34 +25,27 @@ interface WidgetProps {
   onDeleteBlock?: () => void;
   onConvertToText?: () => void;
   autoFocus?: boolean;
+  colorProps?: { text?: string; bg?: string };
 }
 
 // --- CALLOUT ---
-export const CalloutWidget = ({ onFocus }: WidgetProps) => {
-  const [text, setText] = useState("Click to edit this callout");
+export const CalloutWidget = (props: WidgetProps) => {
   return (
-    <div className="flex gap-3 items-center bg-white/5 p-4 rounded-lg border-l-4 border-blue-500">
-      <span className="text-xl">💡</span>
-      <input 
-        onFocus={onFocus}
-        value={text} 
-        onChange={(e) => setText(e.target.value)}
-        className="bg-transparent border-none outline-none text-sm text-white/90 w-full"
-      />
+    <div className={`flex gap-3 items-start p-4 rounded-lg w-full ${props.colorProps?.bg || 'bg-white/5'}`}>
+      
+      <div className="flex-1 w-full">
+        <TextBoxWidget 
+          {...props} 
+          placeholder="Callout text... Type '/' for commands"
+        />
+      </div>
     </div>
   );
 };
 
 // --- TEXT BOX ---
 export const TextBoxWidget = ({ 
-  onFocus, 
-  onSlash, 
-  setFilterText, 
-  onCommandEnter, 
-  onCancelSlash,
-  onAddBelow,
-  onDeleteBlock,
-  autoFocus
+  onFocus, onSlash, setFilterText, onCommandEnter, onCancelSlash, onAddBelow, onDeleteBlock, autoFocus, colorProps
 }: WidgetProps) => {
   const [text, setText] = useState("");
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
@@ -84,16 +77,15 @@ export const TextBoxWidget = ({
       onAddBelow?.();
     }
 
-      if (e.key === 'Backspace' && text === "") {
-        e.preventDefault();
-        onDeleteBlock?.();
-      }
+    if (e.key === 'Backspace' && text === "") {
+      e.preventDefault();
+      onDeleteBlock?.();
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setText(val);
-
     const lastSlashIndex = val.lastIndexOf('/');
     if (lastSlashIndex !== -1) {
       const query = val.slice(lastSlashIndex + 1);
@@ -115,7 +107,7 @@ export const TextBoxWidget = ({
       onChange={handleChange}
       onBlur={() => setTimeout(() => onCancelSlash?.(), 200)}
       placeholder="Type '/' for commands..."
-      className="w-full bg-transparent border-none outline-none text-white resize-none text-sm min-h-[30px]"
+      className={`w-full bg-transparent border-none outline-none resize-none text-sm min-h-[30px] flex items-center ${colorProps?.text || 'text-white'}`}
     />
   );
 };
@@ -149,18 +141,11 @@ export const ToggleWidget = ({ onFocus }: WidgetProps) => {
 };
 
 // --- VIDEO ---
-export const VideoWidget = ({ onFocus }: WidgetProps) => {
-  return (
-    <div className="aspect-video w-full rounded-lg overflow-hidden bg-black shadow-inner" onFocus={onFocus} tabIndex={0}>
-      <iframe 
-        src="https://www.youtube.com/embed/jfKfPfyJRdk" 
-        className="w-full h-full pointer-events-auto" 
-        style={{ border: 0 }}
-        allowFullScreen 
-      />
-    </div>
-  );
-};
+export const VideoWidget = ({ onFocus }: WidgetProps) => (
+  <div className="aspect-video w-full rounded-lg overflow-hidden bg-black" onFocus={onFocus} tabIndex={0}>
+    <iframe src="https://www.youtube.com/embed/jfKfPfyJRdk" className="w-full h-full" allowFullScreen />
+  </div>
+);
 
 // --- IMAGE ---
 export const ImageWidget = ({ onFocus }: WidgetProps) => (
@@ -180,98 +165,13 @@ export const EmbedWidget = ({ onFocus }: WidgetProps) => (
 );
 
 // --- TODO ---
-const SortableTask = ({ task, setTasks, tasks, handleKeyDown, isOver, activeId }: any) => {
-  const { 
-    attributes, 
-    listeners, 
-    setNodeRef, 
-    transform, 
-    transition, 
-    isDragging 
-  } = useSortable({ id: task.id });
-
-  const style = {
-    transform: CSS.Translate.toString(transform),
-    transition,
-    opacity: isDragging ? 0.3 : 1,
-    position: 'relative' as const,
-  };
-
-  return (
-    <div ref={setNodeRef} style={style} className="group flex flex-col w-full">
-      {isOver && activeId !== task.id && (
-        <div 
-          className="absolute -top-[1px] left-0 right-0 h-[2px] bg-blue-500 z-50 pointer-events-none"
-          style={{ 
-            marginLeft: `${task.indent * 24}px`, 
-            width: `calc(100% - ${task.indent * 24}px)` 
-          }}
-        />
-      )}
-
-      <div 
-        className="flex items-center gap-1 py-1"
-        style={{ paddingLeft: `${task.indent * 24}px` }}
-      >
-        <div 
-          {...attributes} 
-          {...listeners} 
-          className="opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing p-1 text-white/20 hover:text-white/60 transition-opacity"
-        >
-          <GripVertical size={14} />
-        </div>
-
-        <div className="flex items-center justify-center w-5 h-5 shrink-0">
-          <input 
-            type="checkbox" 
-            checked={task.done} 
-            onChange={() => setTasks(tasks.map((t: any) => t.id === task.id ? {...t, done: !t.done} : t))}
-            className="accent-blue-500 w-4 h-4 cursor-pointer" 
-          />
-        </div>
-        
-        <input 
-          value={task.text}
-          onKeyDown={(e) => handleKeyDown(e, task.id, task.text, task.indent)}
-          onChange={(e) => setTasks(tasks.map((t: any) => t.id === task.id ? {...t, text: e.target.value} : t))}
-          placeholder="To-do"
-          className={`bg-transparent border-none outline-none text-sm w-full ${
-            task.done ? 'line-through text-white/40' : 'text-white'
-          }`}
-        />
-      </div>
-    </div>
-  );
-};
-
-export const TodoWidget = ({ onFocus, onConvertToText }: WidgetProps) => { 
+export const TodoWidget = ({ colorProps, onConvertToText }: any) => {
   const [tasks, setTasks] = useState([
-    { id: 1, text: "", done: false, indent: 0 }
+    { id: Date.now(), text: '', done: false, indent: 0 }
   ]);
-  const [activeId, setActiveId] = useState<number | null>(null);
-  const [overId, setOverId] = useState<number | null>(null);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
-
-  const handleDragStart = (event: any) => setActiveId(event.active.id);
-  const handleDragOver = (event: any) => setOverId(event.over?.id || null);
-  const handleDragEnd = (event: any) => {
-  const { active, over } = event;
-
-  if (over && active.id !== over.id) {
-    setTasks((items) => {
-      const oldIndex = items.findIndex((t) => t.id === active.id);
-      const newIndex = items.findIndex((t) => t.id === over.id);
-      const newItems = [...items];
-      const targetIndent = items[newIndex].indent;
-      newItems[oldIndex] = { ...newItems[oldIndex], indent: targetIndent };
-
-      return arrayMove(newItems, oldIndex, newIndex);
-    });
-  }
   
-  setActiveId(null);
-  setOverId(null);
-};
+  const [activeId, setActiveId] = useState<number | null>(null);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const addTask = (afterId?: number) => {
     const newTask = { id: Date.now(), text: "", done: false, indent: 0 };
@@ -290,7 +190,7 @@ export const TodoWidget = ({ onFocus, onConvertToText }: WidgetProps) => {
     if (e.key === "Tab") {
       e.preventDefault(); 
       e.stopPropagation(); 
-      setTasks(prevTasks => prevTasks.map(t => {
+      setTasks(prev => prev.map(t => {
         if (t.id === taskId) {
           const newIndent = e.shiftKey ? Math.max(0, t.indent - 1) : Math.min(4, t.indent + 1);
           return { ...t, indent: newIndent };
@@ -307,86 +207,119 @@ export const TodoWidget = ({ onFocus, onConvertToText }: WidgetProps) => {
     if (e.key === "Backspace") {
       if (taskText === "") {
         e.preventDefault();
-
+        // If indented, move back one level instead of deleting
         if (taskIndent > 0) {
           setTasks(prev => prev.map(t => t.id === taskId ? { ...t, indent: t.indent - 1 } : t));
           return;
         }
-
+        // If only one task left, convert back to text block
         if (tasks.length === 1) {
           onConvertToText?.(); 
           return;
         }
-
-        const currentIndex = tasks.findIndex(t => t.id === taskId);
-        const newTasks = tasks.filter(t => t.id !== taskId);
-        setTasks(newTasks);
+        // Otherwise delete the line
+        setTasks(prev => prev.filter(t => t.id !== taskId));
       }
     }
   };
 
+  const handleDragEnd = (event: any) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setTasks((items) => {
+        const oldIndex = items.findIndex((t) => t.id === active.id);
+        const newIndex = items.findIndex((t) => t.id === over.id);
+        const newItems = arrayMove(items, oldIndex, newIndex);
+        // Match the indent of the item it was dropped on
+        newItems[newIndex] = { ...newItems[newIndex], indent: items[newIndex].indent };
+        return newItems;
+      });
+    }
+    setActiveId(null);
+  };
+
   return (
-    <div className="space-y-1 py-1" onFocus={onFocus}>
-      <DndContext 
-        sensors={sensors} 
-        collisionDetection={closestCorners} 
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDragEnd={handleDragEnd}
-      >
+    <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
+      <div className="flex flex-col w-full">
         <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
           {tasks.map((task) => (
-            <SortableTask 
+            <SortableTodoItem 
               key={task.id} 
               task={task} 
-              tasks={tasks} 
-              setTasks={setTasks} 
-              handleKeyDown={handleKeyDown} 
-              isOver={overId === task.id}
-              activeId={activeId}
+              tasks={tasks}
+              setTasks={setTasks}
+              handleKeyDown={handleKeyDown}
+              colorProps={colorProps}
             />
           ))}
         </SortableContext>
-      </DndContext>
+      </div>
+    </DndContext>
+  );
+};
+
+// Internal component for clean drag-and-drop
+const SortableTodoItem = ({ task, tasks, setTasks, handleKeyDown, colorProps }: any) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
+  const style = { 
+    transform: CSS.Translate.toString(transform), 
+    transition, 
+    opacity: isDragging ? 0.3 : 1,
+    paddingLeft: `${task.indent * 20}px` // Applies the visual indentation
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="group/item flex items-center gap-1 py-0.5 w-full">
+      {/* Icon only shows when hovering THIS specific line */}
+      <div 
+        {...attributes} {...listeners} 
+        className="opacity-0 group-hover/item:opacity-100 p-1 text-white/20 hover:text-white/60 cursor-grab"
+      >
+        <GripVertical size={14} />
+      </div>
+
+      <input 
+        type="checkbox" 
+        checked={task.done} 
+        onChange={() => setTasks(tasks.map((t: any) => t.id === task.id ? {...t, done: !t.done} : t))}
+        className="accent-blue-500 w-4 h-4 cursor-pointer bg-transparent border-white/20 rounded" 
+      />
+      
+      <input 
+        value={task.text}
+        onKeyDown={(e) => handleKeyDown(e, task.id, task.text, task.indent)}
+        onChange={(e) => setTasks(tasks.map((t: any) => t.id === task.id ? {...t, text: e.target.value} : t))}
+        placeholder="To-do"
+        className={`bg-transparent border-none outline-none text-sm w-full transition-colors ${
+          task.done ? 'line-through text-white/40' : colorProps?.text || 'text-white'
+        }`}
+      />
     </div>
   );
 };
 
 // --- TIMER ---
-export const TimerWidget = ({ onFocus }: WidgetProps) => {
+export const TimerWidget = ({ onFocus, colorProps }: WidgetProps) => {
   const [seconds, setSeconds] = useState(1500);
   const [isActive, setIsActive] = useState(false);
 
   useEffect(() => {
     let interval: any;
-    if (isActive && seconds > 0) {
-      interval = setInterval(() => setSeconds(s => s - 1), 1000);
-    } else {
-      clearInterval(interval);
-    }
+    if (isActive && seconds > 0) interval = setInterval(() => setSeconds(s => s - 1), 1000);
+    else clearInterval(interval);
     return () => clearInterval(interval);
   }, [isActive, seconds]);
 
   const format = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
   return (
-    <div className="text-center py-2" onFocus={onFocus} tabIndex={0}>
-      <div className="text-3xl font-mono font-bold text-blue-500 tabular-nums">
+    <div className={`text-center py-2 rounded-lg ${colorProps?.bg || ''}`} onFocus={onFocus} tabIndex={0}>
+      <div className={`text-3xl font-mono font-bold tabular-nums ${colorProps?.text || 'text-blue-500'}`}>
         {format(seconds)}
       </div>
       <div className="flex justify-center gap-2 mt-3">
-        <button 
-          onClick={() => setIsActive(!isActive)}
-          className="text-[10px] bg-white/10 hover:bg-white/20 px-3 py-1 rounded-full font-bold transition-colors"
-        >
-          {isActive ? 'PAUSE' : 'START'}
-        </button>
-        <button 
-          onClick={() => { setIsActive(false); setSeconds(1500); }}
-          className="text-[10px] text-white/40 hover:text-white transition-colors"
-        >
-          RESET
-        </button>
+        <button onClick={() => setIsActive(!isActive)} className="text-[10px] bg-white/10 px-3 py-1 rounded-full font-bold">{isActive ? 'PAUSE' : 'START'}</button>
+        <button onClick={() => { setIsActive(false); setSeconds(1500); }} className="text-[10px] text-white/40">RESET</button>
       </div>
     </div>
   );

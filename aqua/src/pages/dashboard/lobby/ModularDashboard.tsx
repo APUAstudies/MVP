@@ -12,10 +12,15 @@ import {
   useSortable 
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { WidgetWrapper } from './Lobby';
+import { WidgetWrapper } from './Lobby'; 
 import { TextBoxWidget, TodoWidget, TimerWidget, VideoWidget, CalloutWidget } from "./Widgets";
 
-interface LobbyBlock { id: string; type: string; }
+interface LobbyBlock { 
+  id: string; 
+  type: string; 
+  colorProps?: { text?: string; bg?: string; }; 
+  autoFocus?: boolean;
+}
 interface LobbyColumn { id: string; width: number; blocks: LobbyBlock[]; }
 interface LobbyRow { id: string; columns: LobbyColumn[]; }
 
@@ -28,6 +33,7 @@ export const ModularDashboard = () => {
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [menuType, setMenuType] = useState<'slash' | null>(null);
   const [filterText, setFilterText] = useState("");
+
   const blockOptions = [
     { id: 'text', label: 'Text' },
     { id: 'todo', label: 'Todo' },
@@ -39,6 +45,10 @@ export const ModularDashboard = () => {
   const filteredBlocks = blockOptions.filter(block => 
     block.label.toLowerCase().includes(filterText.toLowerCase())
   );
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  // --- RESTORED & UPDATED FUNCTIONS ---
 
   const selectBlock = (typeId: string) => {
     setRows(prev => prev.map(r => ({
@@ -52,8 +62,6 @@ export const ModularDashboard = () => {
     setFilterText("");
   };
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
-
   const handleManualReorder = (event: any) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -65,11 +73,12 @@ export const ModularDashboard = () => {
         columns: row.columns.map(col => {
           const bIdx = col.blocks.findIndex(b => b.id === active.id);
           if (bIdx !== -1) [movedBlock] = col.blocks.splice(bIdx, 1);
-            return { ...col, blocks: [...col.blocks] };
+          return { ...col, blocks: [...col.blocks] };
         }).filter(col => col.blocks.length > 0 || row.columns.length > 1)
       })).filter(r => r.columns.some(c => c.blocks.length > 0)); 
 
       if (!movedBlock) return currentRows;
+
       if (over.id.toString().startsWith('dropzone-')) {
         const targetRowIndex = parseInt(over.id.toString().split('-')[1]);
         const newRow: LobbyRow = {
@@ -133,11 +142,32 @@ export const ModularDashboard = () => {
         });
       }
       newRows.splice(rowIndex, 1, ...splitResult);
-      return newRows;
+      return [...newRows];
     });
   };
 
-  const addBlockInColumn = (rowId: string, colId: string, blockId: string) => {
+  const deleteBlock = (rowId: string, colId: string, blockId: string) => {
+    setRows(prev => {
+      let targetId: string | null = null;
+      const row = prev.find(r => r.id === rowId);
+      const col = row?.columns.find(c => c.id === colId);
+      if (col) {
+        const idx = col.blocks.findIndex(b => b.id === blockId);
+        if (idx > 0) targetId = col.blocks[idx - 1].id;
+      }
+      setFocusTargetId(targetId);
+
+      return prev.map(r => r.id === rowId ? {
+        ...r,
+        columns: r.columns.map(c => c.id === colId ? {
+          ...c,
+          blocks: c.blocks.filter(b => b.id !== blockId)
+        } : c).filter(c => c.blocks.length > 0 || r.columns.length > 1)
+      } : r).filter(r => r.columns.length > 0);
+    });
+  };
+
+  const duplicateBlock = (rowId: string, colId: string, blockId: string) => {
     setRows(prev => prev.map(row => {
       if (row.id !== rowId) return row;
       return {
@@ -145,82 +175,64 @@ export const ModularDashboard = () => {
         columns: row.columns.map(col => {
           if (col.id !== colId) return col;
           const idx = col.blocks.findIndex(b => b.id === blockId);
+          if (idx === -1) return col;
+          const copy = { ...JSON.parse(JSON.stringify(col.blocks[idx])), id: `b-${Date.now()}` };
           const newBlocks = [...col.blocks];
-          const newBlockId = `b-${Date.now()}`;
-          newBlocks.splice(idx + 1, 0, { 
-            id: newBlockId, 
-            type: 'text',
-            autoFocus: true
-          } as any); 
-
+          newBlocks.splice(idx + 1, 0, copy);
           return { ...col, blocks: newBlocks };
         })
       };
     }));
   };
 
-  const deleteBlock = (rowId: string, colId: string, blockId: string) => {
-  setRows(prev => {
-    let targetId: string | null = null;
-    const currentRow = prev.find(r => r.id === rowId);
-    const currentCol = currentRow?.columns.find(c => c.id === colId);
-    
-    if (currentCol) {
-      const idx = currentCol.blocks.findIndex(b => b.id === blockId);
-      if (idx > 0) {
-        targetId = currentCol.blocks[idx - 1].id;
-      } else {
-        // Find previous row/column logic can be added here
-      }
-    }
-    setFocusTargetId(targetId);
-
-    return prev.map(row => {
-      if (row.id !== rowId) return row;
-      const updatedCols = row.columns.map(col => {
-        if (col.id !== colId) return col;
-        return { ...col, blocks: col.blocks.filter(b => b.id !== blockId) };
-      }).filter(col => col.blocks.length > 0);
-
-      const newWidth = 100 / updatedCols.length;
-      return { ...row, columns: updatedCols.map(c => ({ ...c, width: newWidth })) };
-    }).filter(r => r.columns.length > 0);
-  });
-};
+  const updateBlockColor = (rowId: string, colId: string, blockId: string, colorClass: string, isBg: boolean) => {
+    setRows(prev => prev.map(row => row.id === rowId ? {
+      ...row,
+      columns: row.columns.map(col => col.id === colId ? {
+        ...col,
+        blocks: col.blocks.map(b => b.id === blockId ? {
+          ...b,
+          colorProps: { ...b.colorProps, [isBg ? 'bg' : 'text']: colorClass }
+        } : b)
+      } : col)
+    } : row));
+  };
 
   const updateBlockType = (rowId: string, colId: string, blockId: string, newType: string) => {
-    setRows(prev => prev.map(row => {
-      if (row.id !== rowId) return row;
-      return {
-        ...row,
-        columns: row.columns.map(col => {
-          if (col.id !== colId) return col;
-          return {
-            ...col,
-            blocks: col.blocks.map(block => 
-              block.id === blockId ? { ...block, type: newType } : block
-            )
-          };
-        })
-      };
-    }));
+    setRows(prev => prev.map(row => row.id === rowId ? {
+      ...row,
+      columns: row.columns.map(col => col.id === colId ? {
+        ...col,
+        blocks: col.blocks.map(block => block.id === blockId ? { ...block, type: newType } : block)
+      } : col)
+    } : row));
+  };
+
+  const addBlockInColumn = (rowId: string, colId: string, blockId: string) => {
+    setRows(prev => prev.map(row => row.id === rowId ? {
+      ...row,
+      columns: row.columns.map(col => {
+        if (col.id !== colId) return col;
+        const idx = col.blocks.findIndex(b => b.id === blockId);
+        const newBlocks = [...col.blocks];
+        newBlocks.splice(idx + 1, 0, { id: `b-${Date.now()}`, type: 'text', autoFocus: true });
+        return { ...col, blocks: newBlocks };
+      })
+    } : row));
   };
 
   const renderBlock = (block: LobbyBlock, rowId: string, colId: string) => {
     const p = { 
       onFocus: () => setActiveBlockId(block.id), 
       onSlash: () => setMenuType('slash'),
-      setFilterText: setFilterText,
+      setFilterText,
       onCancelSlash: () => setMenuType(null),
-      autoFocus: block.id === focusTargetId || (block as any).autoFocus,
-      onCommandEnter: () => {
-        if (filteredBlocks.length > 0) {
-          selectBlock(filteredBlocks[0].id);
-        }
-      },
+      autoFocus: block.id === focusTargetId || block.autoFocus,
+      onCommandEnter: () => filteredBlocks.length > 0 && selectBlock(filteredBlocks[0].id),
       onAddBelow: () => addBlockInColumn(rowId, colId, block.id),
       onDeleteBlock: () => deleteBlock(rowId, colId, block.id),
       onConvertToText: () => updateBlockType(rowId, colId, block.id, 'text'),
+      colorProps: block.colorProps
     };
 
     switch (block.type) {
@@ -238,20 +250,12 @@ export const ModularDashboard = () => {
         <>
           <div className="fixed inset-0 z-[999]" onClick={() => {setMenuType(null); setFilterText(""); }} />
           <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 bg-[#1a1a1a] border border-[#333] rounded-xl z-[1000] p-2 shadow-2xl">
-            {filteredBlocks.length > 0 ? (
-              filteredBlocks.map((block, index) => (
-                <button 
-                  key={block.id} 
-                  onClick={() => selectBlock(block.id)} 
-                  className={`w-full text-left px-4 py-2 rounded-lg capitalize text-sm transition-colors 
-                  ${ index === 0 ? 'bg-white/10 text-white' : 'hover:bg-white/5 text-white/70'}`}
-                >
-                  {block.label}
-                </button>
-              ))
-            ) : (
-              <div className="px-4 py-2 text-sm text-white/40 italic">No matching blocks found</div>
-            )}
+            {filteredBlocks.map((block, index) => (
+              <button key={block.id} onClick={() => selectBlock(block.id)} 
+                className={`w-full text-left px-4 py-2 rounded-lg text-sm transition-colors ${index === 0 ? 'bg-white/10 text-white' : 'hover:bg-white/5 text-white/70'}`}>
+                {block.label}
+              </button>
+            ))}
           </div>
         </>
       )}
@@ -272,10 +276,12 @@ export const ModularDashboard = () => {
                           onDelete={() => deleteBlock(row.id, col.id, block.id)}
                           onAddBelow={() => addBlockInColumn(row.id, col.id, block.id)}
                           onAddColumn={() => splitBlockToColumns(rIdx, col.id, block.id)}
+                          onDuplicate={() => duplicateBlock(row.id, col.id, block.id)}
+                          onConvert={(type: string) => updateBlockType(row.id, col.id, block.id, type)}
+                          onUpdateColor={(color: string, isBg: boolean) => updateBlockColor(row.id, col.id, block.id, color, isBg)}
                           renderBlock={() => renderBlock(block, row.id, col.id)}
                         />
                       ))}
-                      <div id={col.id} className="h-4 w-full opacity-0 hover:opacity-10 transition-opacity bg-white/5 rounded" />
                     </SortableContext>
                   </div>
                 ))}
@@ -291,28 +297,16 @@ export const ModularDashboard = () => {
 
 const RowDropZone = ({ id }: { id: string }) => {
   const { setNodeRef, isOver } = useSortable({ id });
-  return (
-    <div 
-      ref={setNodeRef} 
-      className={`w-full transition-all duration-200 pointer-events-auto ${
-        isOver 
-          ? 'h-10 bg-blue-500/10 my-2 rounded-lg border-2 border-dashed border-blue-500/40 flex items-center justify-center text-blue-400/50 text-xs font-medium' 
-          : 'h-4'
-      }`}
-    >
-      {isOver && "Drop to create new row"}
-    </div>
-  );
+  return <div ref={setNodeRef} className={`w-full transition-all duration-200 ${isOver ? 'h-10 bg-blue-500/10 my-2 border-2 border-dashed border-blue-500/40 flex items-center justify-center text-blue-400 text-xs' : 'h-4'}`}>
+    {isOver && "Drop here to create new row"}
+  </div>;
 };
 
-export const SortableItem = ({ block, onDelete, onAddBelow, onAddColumn, renderBlock }: any) => {
+export const SortableItem = ({ 
+  block, onDelete, onAddBelow, onAddColumn, onDuplicate, onConvert, onUpdateColor, renderBlock 
+}: any) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.id });
-  const style = { 
-    transform: CSS.Translate.toString(transform), 
-    transition, 
-    opacity: isDragging ? 0.3 : 1, 
-    zIndex: isDragging ? 999 : 1 
-  };
+  const style = { transform: CSS.Translate.toString(transform), transition, opacity: isDragging ? 0.3 : 1 };
 
   return (
     <div ref={setNodeRef} style={style} className="w-full">
@@ -320,6 +314,10 @@ export const SortableItem = ({ block, onDelete, onAddBelow, onAddColumn, renderB
         onDelete={onDelete}
         onAddBelow={onAddBelow} 
         onAddColumn={onAddColumn}
+        onDuplicate={onDuplicate}
+        onConvert={onConvert}
+        onUpdateColor={onUpdateColor}
+        colorProps={block.colorProps}
         dragHandleProps={{ ...attributes, ...listeners }}
       >
         {renderBlock()}
