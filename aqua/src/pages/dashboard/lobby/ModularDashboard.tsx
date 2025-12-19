@@ -1,154 +1,233 @@
-import { 
-  CalloutWidget, TextBoxWidget, TodoWidget, ToggleWidget, 
-  VideoWidget, ImageWidget, EmbedWidget, TimerWidget 
-} from "./Widgets";
-import { useState, useMemo } from "react";
+import { useState, useRef } from "react";
 import { 
   DndContext, 
-  closestCorners,
-  KeyboardSensor, 
+  closestCorners, 
   PointerSensor, 
-  useSensor,
-  useSensors
+  useSensor, 
+  useSensors 
 } from '@dnd-kit/core';
 import { 
-  arrayMove, 
   SortableContext, 
-  sortableKeyboardCoordinates, 
-  rectSortingStrategy, 
+  verticalListSortingStrategy, 
   useSortable 
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { WidgetWrapper } from './Lobby';
+import { TextBoxWidget, TodoWidget, TimerWidget, VideoWidget, CalloutWidget } from "./Widgets";
 
-interface LobbyBlock {
-  id: string;
-  type: string;
-  width: string;
-}
+interface LobbyBlock { id: string; type: string; }
+interface LobbyColumn { id: string; width: number; blocks: LobbyBlock[]; }
+interface LobbyRow { id: string; columns: LobbyColumn[]; }
 
 export const ModularDashboard = () => {
-  const [blocks, setBlocks] = useState<LobbyBlock[]>([
-    { id: "1", type: "text", width: "col-span-12" },
-    { id: "2", type: "timer", width: "col-span-4" },
-    { id: "3", type: "todo", width: "col-span-8" }
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [rows, setRows] = useState<LobbyRow[]>([
+    { id: "row-1", columns: [{ id: "c1", width: 100, blocks: [{ id: "b1", type: "text" }] }] }
   ]);
 
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [menuType, setMenuType] = useState<'slash' | null>(null);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
-  const blockIds = useMemo(() => blocks.map((b) => b.id), [blocks]);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 3 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
-
-  const handleDragEnd = (event: any) => {
+  const handleManualReorder = (event: any) => {
     const { active, over } = event;
-    if (over && active.id !== over.id) {
-      setBlocks((items) => {
-        const oldIndex = items.findIndex((i) => i.id === active.id);
-        const newIndex = items.findIndex((i) => i.id === over.id);
-        return arrayMove(items, oldIndex, newIndex);
-      });
-    }
-  };
+    if (!over || active.id === over.id) return;
 
-  const addBlockBelow = (id: string) => {
-    setBlocks(prev => {
-      const index = prev.findIndex(b => b.id === id);
-      const newBlock: LobbyBlock = { 
-        id: `block-${Date.now()}`, 
-        type: 'text', 
-        width: 'col-span-12' 
-      };
-      const newBlocks = [...prev];
-      newBlocks.splice(index + 1, 0, newBlock); 
-      return newBlocks;
+    setRows(currentRows => {
+      let movedBlock: LobbyBlock | null = null;
+      const rowsAfterRemoval = currentRows.map(row => ({
+        ...row,
+        columns: row.columns.map(col => {
+          const bIdx = col.blocks.findIndex(b => b.id === active.id);
+          if (bIdx !== -1) {
+            [movedBlock] = col.blocks.splice(bIdx, 1);
+          }
+          return { ...col, blocks: [...col.blocks] };
+        }).filter(col => col.blocks.length > 0 || row.columns.length > 1) 
+      })).filter(r => r.columns.some(c => c.blocks.length > 0)); 
+
+      if (!movedBlock) return currentRows;
+      if (over.id.toString().startsWith('dropzone-')) {
+        const targetRowIndex = parseInt(over.id.toString().split('-')[1]);
+        const newRow: LobbyRow = {
+          id: `row-${Date.now()}`,
+          columns: [{ id: `c-${Date.now()}`, width: 100, blocks: [movedBlock] }]
+        };
+        const updatedRows = [...rowsAfterRemoval];
+        updatedRows.splice(targetRowIndex, 0, newRow);
+        return updatedRows;
+      }
+
+      return rowsAfterRemoval.map(row => ({
+        ...row,
+        columns: row.columns.map(col => {
+          const overIdx = col.blocks.findIndex(b => b.id === over.id);
+          if (overIdx !== -1) {
+            col.blocks.splice(overIdx, 0, movedBlock!);
+          } else if (col.id === over.id) {
+            col.blocks.push(movedBlock!);
+          }
+          return { ...col, blocks: [...col.blocks] };
+        })
+      }));
     });
-  };
 
-  const addBlock = (type: string) => {
-    if (activeBlockId) {
-      setBlocks(prev => prev.map(block => 
-        block.id === activeBlockId ? { ...block, type } : block
-      ));
-    } else {
-      const newBlock: LobbyBlock = {
-        id: `block-${Date.now()}`,
-        type,
-        width: 'col-span-12'
-      };
-      setBlocks(prev => [...prev, newBlock]);
-    }
-    setMenuType(null);
     setActiveBlockId(null);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === '/') setMenuType('slash');
-    if (e.key === 'Escape') setMenuType(null);
+  const splitBlockToColumns = (rowIndex: number, colId: string, blockId: string) => {
+    setRows(prev => {
+      const newRows = [...prev];
+      const currentRow = newRows[rowIndex];
+      const currentCol = currentRow.columns.find(c => c.id === colId);
+      
+      if (!currentCol) return prev;
+      const blockIdx = currentCol.blocks.findIndex(b => b.id === blockId);
+      const [blockToSplit] = currentCol.blocks.splice(blockIdx, 1);
+      const splitRow: LobbyRow = {
+        id: `row-split-${Date.now()}`,
+        columns: [
+          { id: `c1-${Date.now()}`, width: 50, blocks: [blockToSplit] },
+          { id: `c2-${Date.now()}`, width: 50, blocks: [{ id: `b-new-${Date.now()}`, type: 'text' }] }
+        ]
+      };
+      newRows.splice(rowIndex + 1, 0, splitRow);
+      return newRows.filter(r => r.columns.some(c => c.blocks.length > 0));
+    });
+  };
+
+  const addBlockInColumn = (rowId: string, colId: string, blockId: string) => {
+    setRows(prev => prev.map(row => {
+      if (row.id !== rowId) return row;
+      return {
+        ...row,
+        columns: row.columns.map(col => {
+          if (col.id !== colId) return col;
+          const idx = col.blocks.findIndex(b => b.id === blockId);
+          const newBlocks = [...col.blocks];
+          newBlocks.splice(idx + 1, 0, { id: `b-${Date.now()}`, type: 'text' });
+          return { ...col, blocks: newBlocks };
+        })
+      };
+    }));
+  };
+
+  const deleteBlock = (rowId: string, colId: string, blockId: string) => {
+    setRows(prev => prev.map(row => {
+      if (row.id !== rowId) return row;
+      const updatedCols = row.columns.map(col => {
+        if (col.id !== colId) return col;
+        return { ...col, blocks: col.blocks.filter(b => b.id !== blockId) };
+      }).filter(col => col.blocks.length > 0);
+
+      const newWidth = 100 / updatedCols.length;
+      return { ...row, columns: updatedCols.map(c => ({ ...c, width: newWidth })) };
+    }).filter(r => r.columns.length > 0));
   };
 
   const renderBlock = (block: LobbyBlock) => {
-    const props = { onFocus: () => setActiveBlockId(block.id) };
+    const p = { 
+      onFocus: () => setActiveBlockId(block.id), 
+      onSlash: () => setMenuType('slash') 
+    };
     switch (block.type) {
-      case "timer": return <TimerWidget {...props} />;
-      case "todo": return <TodoWidget {...props} />;
-      case "video": return <VideoWidget {...props} />;
-      case "callout": return <CalloutWidget {...props} />;
-      case "toggle": return <ToggleWidget {...props} />;
-      case "image": return <ImageWidget {...props} />;
-      case "embed": return <EmbedWidget {...props} />;
-      default: return <TextBoxWidget {...props} />;
+      case "timer": return <TimerWidget {...p} />;
+      case "todo": return <TodoWidget {...p} />;
+      case "video": return <VideoWidget {...p} />;
+      case "callout": return <CalloutWidget {...p} />;
+      default: return <TextBoxWidget {...p} />;
     }
   };
 
   return (
-    <div onKeyDown={handleKeyDown} className="min-h-screen w-full bg-[#0a0a0a] text-white p-8 overflow-y-auto">
+    <div ref={containerRef} className="min-h-screen w-full bg-[#0a0a0a] text-white p-8 overflow-y-auto">
+      {/* slash */}
       {menuType === 'slash' && (
         <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 bg-[#1a1a1a] border border-[#333] rounded-xl z-[1000] p-2 shadow-2xl">
-          {['text', 'todo', 'timer', 'video', 'callout', 'toggle'].map(type => (
-            <button key={type} onClick={() => addBlock(type)} className="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg capitalize text-sm">
-              {type}
-            </button>
+          {['text', 'todo', 'timer', 'video', 'callout'].map(type => (
+            <button key={type} onClick={() => {
+              setRows(prev => prev.map(r => ({
+                ...r,
+                columns: r.columns.map(c => ({
+                  ...c,
+                  blocks: c.blocks.map(b => b.id === activeBlockId ? { ...b, type } : b)
+                }))
+              })));
+              setMenuType(null);
+            }} className="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg capitalize text-sm">{type}</button>
           ))}
         </div>
       )}
 
-      <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
-        <SortableContext items={blockIds} strategy={rectSortingStrategy}>
-          <div className="grid grid-cols-12 gap-6 max-w-6xl mx-auto">
-            {blocks.map(block => (
-               <SortableItem 
-                key={block.id} 
-                id={block.id} 
-                block={block} 
-                renderBlock={() => renderBlock(block)} 
-                onDelete={() => setBlocks(prev => prev.filter(b => b.id !== block.id))}
-                onAddBelow={() => addBlockBelow(block.id)}
-                />
-            ))}
-          </div>
-        </SortableContext>
+      <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleManualReorder}>
+        <div className="flex flex-col max-w-7xl mx-auto w-full">
+          
+          <RowDropZone id="dropzone-0" />
+
+          {rows.map((row, rIdx) => (
+            <div key={row.id} className="flex flex-col w-full">
+              <div className="flex gap-4 w-full items-start">
+                {row.columns.map((col) => (
+                  <div key={col.id} style={{ width: `${col.width}%` }} className="flex flex-col gap-2 min-h-[50px]">
+                    <SortableContext items={col.blocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
+                      {col.blocks.map(block => (
+                        <SortableItem 
+                          key={block.id} 
+                          block={block} 
+                          onDelete={() => deleteBlock(row.id, col.id, block.id)}
+                          onAddBelow={() => addBlockInColumn(row.id, col.id, block.id)}
+                          onAddColumn={() => splitBlockToColumns(rIdx, col.id, block.id)}
+                          renderBlock={() => renderBlock(block)} 
+                        />
+                      ))}
+                      <div id={col.id} className="h-4 w-full opacity-0 hover:opacity-10 transition-opacity bg-white/5 rounded" />
+                    </SortableContext>
+                  </div>
+                ))}
+              </div>
+              
+              <RowDropZone id={`dropzone-${rIdx + 1}`} />
+            </div>
+          ))}
+        </div>
       </DndContext>
     </div>
   );
 };
 
-export const SortableItem = ({ id, block, renderBlock, onDelete, onAddBelow }: any) => {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
-  const style = {
-    transform: CSS.Translate.toString(transform),
-    transition,
-    zIndex: isDragging ? 50 : 'auto',
-    opacity: isDragging ? 0.5 : 1,
+const RowDropZone = ({ id }: { id: string }) => {
+  const { setNodeRef, isOver } = useSortable({ id });
+  return (
+    <div 
+      ref={setNodeRef} 
+      className={`w-full transition-all duration-200 pointer-events-auto ${
+        isOver 
+          ? 'h-10 bg-blue-500/10 my-2 rounded-lg border-2 border-dashed border-blue-500/40 flex items-center justify-center text-blue-400/50 text-xs font-medium' 
+          : 'h-4'
+      }`}
+    >
+      {isOver && "Drop to create new row"}
+    </div>
+  );
+};
+
+export const SortableItem = ({ block, onDelete, onAddBelow, onAddColumn, renderBlock }: any) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.id });
+  const style = { 
+    transform: CSS.Translate.toString(transform), 
+    transition, 
+    opacity: isDragging ? 0.3 : 1, 
+    zIndex: isDragging ? 999 : 1 
   };
 
   return (
-    <div ref={setNodeRef} style={style} className={block.width}>
-      <WidgetWrapper onDelete={onDelete} onAddBelow={onAddBelow} dragHandleProps={{ ...attributes, ...listeners }}>
+    <div ref={setNodeRef} style={style} className="w-full">
+      <WidgetWrapper 
+        onDelete={onDelete}
+        onAddBelow={onAddBelow} 
+        onAddColumn={onAddColumn}
+        dragHandleProps={{ ...attributes, ...listeners }}
+      >
         {renderBlock()}
       </WidgetWrapper>
     </div>

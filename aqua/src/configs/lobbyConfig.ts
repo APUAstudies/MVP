@@ -11,6 +11,5 @@ export type BlockType = 'callout' | 'text' | 'todo' | 'toggle' | 'video' | 'imag
 export interface LobbyBlock {
   id: string;
   type: BlockType;
-  content: any; // Stores the specific data for that widget
   width: string; // e.g., 'col-span-4'
 }
