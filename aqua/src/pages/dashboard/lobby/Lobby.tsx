@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
-import { GripVertical, Plus, Settings2, Columns } from "lucide-react";
+import { GripVertical, Plus, Columns, Trash2 } from "lucide-react";
 import { ModularDashboard } from "./ModularDashboard";
 
 export default function StudyLobby() {
@@ -43,38 +43,46 @@ export const WidgetWrapper = ({
       )}
 
       <div className="flex items-center mt-1 shrink-0">
-        <button onClick={onAddBelow} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded text-white/40 hover:text-white transition-opacity">
+        <button 
+          onClick={(e) => { e.stopPropagation(); onAddBelow(); }} 
+          onPointerDown={(e) => e.stopPropagation()}
+          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded text-white/40 hover:text-white transition-opacity">
           <Plus size={16} />
         </button>
-        
+
         <div className="relative">
           <button 
-            onClick={() => setShowMenu(!showMenu)}
-            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded text-white/40 hover:text-white transition-opacity">
-            <Settings2 size={16} />
+            {...dragHandleProps}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowMenu(!showMenu);
+            }}
+            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded text-white/40 hover:text-white transition-opacity cursor-grab active:cursor-grabbing">
+            <GripVertical size={18} />
           </button>
 
           {showMenu && (
             <>
-              <div className="fixed inset-0 z-[60]" onClick={() => setShowMenu(false)} />
-              <div className="absolute left-full ml-2 top-0 w-40 bg-[#1a1a1a] border border-white/10 rounded-lg shadow-2xl z-[70] py-1">
-                <button onClick={() => { onAddColumn(); setShowMenu(false); }} 
-                  className="w-full text-left px-3 py-2 text-xs hover:bg-white/5 flex items-center gap-2">
+              <div className="fixed inset-0 z-[60]" onPointerDown={(e) => {e.stopPropagation();setShowMenu(false); }}/>
+
+              <div className="absolute left-full ml-2 top-0 w-48 bg-[#1a1a1a] border border-white/10 rounded-lg shadow-2xl z-[70] py-1 overflow-hidden"
+                onPointerDown={(e) => e.stopPropagation()} >
+                <button onClick={(e) => { e.stopPropagation(); onAddColumn(); setShowMenu(false); }} 
+                  className="w-full text-left px-3 py-2 text-xs hover:bg-white/5 flex items-center gap-2 text-white/80">
                   <Columns size={14} /> Split into Columns
                 </button>
-                <button onClick={() => { onDelete(); setShowMenu(false); }} className="w-full text-left px-3 py-2 text-xs hover:bg-red-500/20 text-red-400 flex items-center gap-2">
-                   Delete
+
+                <div className="h-[1px] bg-white/5 my-1" />
+
+                <button onClick={(e) => { e.stopPropagation(); onDelete(); setShowMenu(false); }}
+                  className="w-full text-left px-3 py-2 text-xs hover:bg-red-500/20 text-red-400 flex items-center gap-2">
+                  <Trash2 size={14} /> Delete Block
                 </button>
               </div>
             </>
           )}
         </div>
-
-        <button {...dragHandleProps} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded text-white/40 hover:text-white transition-opacity cursor-grab active:cursor-grabbing">
-          <GripVertical size={18} />
-        </button>
       </div>
-
       <div className="flex-1 bg-white/[0.02] border border-transparent group-hover:border-white/10 rounded-xl p-4 min-h-[40px] transition-all">
         {children}
       </div>

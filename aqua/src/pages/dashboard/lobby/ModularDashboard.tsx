@@ -27,6 +27,31 @@ export const ModularDashboard = () => {
 
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [menuType, setMenuType] = useState<'slash' | null>(null);
+  const [filterText, setFilterText] = useState("");
+  const blockOptions = [
+    { id: 'text', label: 'Text' },
+    { id: 'todo', label: 'Todo' },
+    { id: 'timer', label: 'Timer' },
+    { id: 'video', label: 'Video' },
+    { id: 'callout', label: 'Callout' },
+  ];
+
+  const filteredBlocks = blockOptions.filter(block => 
+    block.label.toLowerCase().includes(filterText.toLowerCase())
+  );
+
+  const selectBlock = (typeId: string) => {
+    setRows(prev => prev.map(r => ({
+      ...r,
+      columns: r.columns.map(c => ({
+        ...c,
+        blocks: c.blocks.map(b => b.id === activeBlockId ? { ...b, type: typeId } : b)
+      }))
+    })));
+    setMenuType(null);
+    setFilterText("");
+  };
+
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const handleManualReorder = (event: any) => {
@@ -81,11 +106,8 @@ export const ModularDashboard = () => {
       const blockIdx = colToSplit.blocks.findIndex(b => b.id === blockId);
       if (blockIdx === -1) return prev;
 
-      // blocks above the target
       const blocksAbove = colToSplit.blocks.slice(0, blockIdx);
-      // target block itself
       const targetBlock = colToSplit.blocks[blockIdx];
-      // blocks below the target
       const blocksBelow = colToSplit.blocks.slice(blockIdx + 1);
       const splitResult: LobbyRow[] = [];
 
@@ -124,7 +146,13 @@ export const ModularDashboard = () => {
           if (col.id !== colId) return col;
           const idx = col.blocks.findIndex(b => b.id === blockId);
           const newBlocks = [...col.blocks];
-          newBlocks.splice(idx + 1, 0, { id: `b-${Date.now()}`, type: 'text' });
+          const newBlockId = `b-${Date.now()}`;
+          newBlocks.splice(idx + 1, 0, { 
+            id: newBlockId, 
+            type: 'text',
+            autoFocus: true
+          } as any); 
+
           return { ...col, blocks: newBlocks };
         })
       };
@@ -144,8 +172,21 @@ export const ModularDashboard = () => {
     }).filter(r => r.columns.length > 0));
   };
 
-  const renderBlock = (block: LobbyBlock) => {
-    const p = { onFocus: () => setActiveBlockId(block.id), onSlash: () => setMenuType('slash') };
+  const renderBlock = (block: LobbyBlock, rowId: string, colId: string) => {
+    const p = { 
+      onFocus: () => setActiveBlockId(block.id), 
+      onSlash: () => setMenuType('slash'),
+      setFilterText: setFilterText,
+      onCancelSlash: () => setMenuType(null),
+      autoFocus: (block as any).autoFocus,
+      onCommandEnter: () => {
+        if (filteredBlocks.length > 0) {
+          selectBlock(filteredBlocks[0].id);
+        }
+      },
+      onAddBelow: () => addBlockInColumn(rowId, colId, block.id) 
+    };
+
     switch (block.type) {
       case "timer": return <TimerWidget {...p} />;
       case "todo": return <TodoWidget {...p} />;
@@ -157,22 +198,26 @@ export const ModularDashboard = () => {
 
   return (
     <div ref={containerRef} className="min-h-screen w-full bg-[#0a0a0a] text-white p-8 overflow-y-auto">
-      {/* slash */}
       {menuType === 'slash' && (
-        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 bg-[#1a1a1a] border border-[#333] rounded-xl z-[1000] p-2 shadow-2xl">
-          {['text', 'todo', 'timer', 'video', 'callout'].map(type => (
-            <button key={type} onClick={() => {
-              setRows(prev => prev.map(r => ({
-                ...r,
-                columns: r.columns.map(c => ({
-                  ...c,
-                  blocks: c.blocks.map(b => b.id === activeBlockId ? { ...b, type } : b)
-                }))
-              })));
-              setMenuType(null);
-            }} className="w-full text-left px-4 py-2 hover:bg-white/10 rounded-lg capitalize text-sm">{type}</button>
-          ))}
-        </div>
+        <>
+          <div className="fixed inset-0 z-[999]" onClick={() => {setMenuType(null); setFilterText(""); }} />
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 bg-[#1a1a1a] border border-[#333] rounded-xl z-[1000] p-2 shadow-2xl">
+            {filteredBlocks.length > 0 ? (
+              filteredBlocks.map((block, index) => (
+                <button 
+                  key={block.id} 
+                  onClick={() => selectBlock(block.id)} 
+                  className={`w-full text-left px-4 py-2 rounded-lg capitalize text-sm transition-colors 
+                  ${ index === 0 ? 'bg-white/10 text-white' : 'hover:bg-white/5 text-white/70'}`}
+                >
+                  {block.label}
+                </button>
+              ))
+            ) : (
+              <div className="px-4 py-2 text-sm text-white/40 italic">No matching blocks found</div>
+            )}
+          </div>
+        </>
       )}
 
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleManualReorder}>
@@ -191,7 +236,7 @@ export const ModularDashboard = () => {
                           onDelete={() => deleteBlock(row.id, col.id, block.id)}
                           onAddBelow={() => addBlockInColumn(row.id, col.id, block.id)}
                           onAddColumn={() => splitBlockToColumns(rIdx, col.id, block.id)}
-                          renderBlock={() => renderBlock(block)} 
+                          renderBlock={() => renderBlock(block, row.id, col.id)}
                         />
                       ))}
                       <div id={col.id} className="h-4 w-full opacity-0 hover:opacity-10 transition-opacity bg-white/5 rounded" />
@@ -199,7 +244,6 @@ export const ModularDashboard = () => {
                   </div>
                 ))}
               </div>
-              
               <RowDropZone id={`dropzone-${rIdx + 1}`} />
             </div>
           ))}

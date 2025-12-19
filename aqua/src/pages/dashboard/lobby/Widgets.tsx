@@ -1,15 +1,16 @@
 import { useState, useEffect, useRef } from "react";
 
-// --- COMMON INTERFACE ---
 interface WidgetProps {
   onFocus?: () => void;
+  onSlash?: () => void;
+  setFilterText?: (text: string) => void;
 }
 
 // --- CALLOUT ---
 export const CalloutWidget = ({ onFocus }: WidgetProps) => {
   const [text, setText] = useState("Click to edit this callout");
   return (
-    <div className="flex gap-3 items-center bg-white/5 p-4 rounded-lg border-l-4 border-[var(--primary)]">
+    <div className="flex gap-3 items-center bg-white/5 p-4 rounded-lg border-l-4 border-blue-500">
       <span className="text-xl">💡</span>
       <input 
         onFocus={onFocus}
@@ -21,17 +22,57 @@ export const CalloutWidget = ({ onFocus }: WidgetProps) => {
   );
 };
 
-// --- TEXT BOX (Auto-Expanding) ---
-export const TextBoxWidget = ({ onFocus }: WidgetProps) => {
+// --- TEXT BOX ---
+export const TextBoxWidget = ({ 
+  onFocus, 
+  onSlash, 
+  setFilterText, 
+  onCommandEnter, 
+  onCancelSlash,
+  onAddBelow,
+  autoFocus
+}: any) => {
   const [text, setText] = useState("");
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (autoFocus && textAreaRef.current) {
+      textAreaRef.current.focus();
+    }
+  }, [autoFocus]);
+
+  useEffect(() => {
+    if (textAreaRef.current) {
+      textAreaRef.current.style.height = "auto";
+      textAreaRef.current.style.height = textAreaRef.current.scrollHeight + "px";
+    }
+  }, [text]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && text.includes('/')) {
+      e.preventDefault();
+      onCommandEnter();
+      return;
+    }
+
+    if (e.key === 'Enter' && text.trim() === "") {
+      e.preventDefault();
+      onAddBelow();
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
-    if (val.endsWith('/')) {
-      setText(val.slice(0, -1)); 
+    setText(val);
+
+    const lastSlashIndex = val.lastIndexOf('/');
+    if (lastSlashIndex !== -1) {
+      const query = val.slice(lastSlashIndex + 1);
+      if (!query.includes(' ')) {
+        setFilterText(query);
+        onSlash();
+      }
     } else {
-      setText(val);
+      onCancelSlash();
     }
   };
 
@@ -40,7 +81,9 @@ export const TextBoxWidget = ({ onFocus }: WidgetProps) => {
       ref={textAreaRef}
       value={text}
       onFocus={onFocus}
+      onKeyDown={handleKeyDown}
       onChange={handleChange}
+      onBlur={() => setTimeout(onCancelSlash, 200)}
       placeholder="Type '/' for commands..."
       className="w-full bg-transparent border-none outline-none text-white resize-none text-sm min-h-[30px]"
     />
@@ -67,7 +110,7 @@ export const ToggleWidget = ({ onFocus }: WidgetProps) => {
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="Empty toggle. Type here..."
-            className="w-full bg-transparent border-none outline-none text-xs text-[var(--text-muted)] resize-none"
+            className="w-full bg-transparent border-none outline-none text-xs text-white/50 resize-none"
           />
         </div>
       )}
@@ -100,13 +143,13 @@ export const ImageWidget = ({ onFocus }: WidgetProps) => (
 // --- EMBED ---
 export const EmbedWidget = ({ onFocus }: WidgetProps) => (
   <div className="w-full rounded-xl overflow-hidden bg-white/5 min-h-[152px]" onFocus={onFocus} tabIndex={0}>
-      <div className="flex items-center justify-center h-[152px] text-[var(--text-muted)] text-xs italic">
+      <div className="flex items-center justify-center h-[152px] text-white/40 text-xs italic">
         No embed URL provided
       </div>
   </div>
 );
 
-// --- TODO LIST ---
+// --- TODO ---
 export const TodoWidget = ({ onFocus }: WidgetProps) => {
   const [tasks, setTasks] = useState([{ id: 1, text: "New Task", done: false }]);
 
@@ -120,17 +163,17 @@ export const TodoWidget = ({ onFocus }: WidgetProps) => {
             type="checkbox" 
             checked={task.done} 
             onChange={() => setTasks(tasks.map(t => t.id === task.id ? {...t, done: !t.done} : t))}
-            className="accent-[var(--primary)] w-4 h-4" 
+            className="accent-blue-500 w-4 h-4" 
           />
           <input 
             value={task.text}
             onChange={(e) => setTasks(tasks.map(t => t.id === task.id ? {...t, text: e.target.value} : t))}
             placeholder="To-do"
-            className={`bg-transparent border-none outline-none text-sm w-full ${task.done ? 'line-through text-[var(--text-muted)]' : 'text-white'}`}
+            className={`bg-transparent border-none outline-none text-sm w-full ${task.done ? 'line-through text-white/40' : 'text-white'}`}
           />
         </div>
       ))}
-      <button onClick={addTask} className="text-[10px] text-[var(--text-muted)] hover:text-white mt-2">+ Add item</button>
+      <button onClick={addTask} className="text-[10px] text-white/40 hover:text-white mt-2">+ Add item</button>
     </div>
   );
 };
@@ -154,7 +197,7 @@ export const TimerWidget = ({ onFocus }: WidgetProps) => {
 
   return (
     <div className="text-center py-2" onFocus={onFocus} tabIndex={0}>
-      <div className="text-3xl font-mono font-bold text-[var(--primary)] tabular-nums">
+      <div className="text-3xl font-mono font-bold text-blue-500 tabular-nums">
         {format(seconds)}
       </div>
       <div className="flex justify-center gap-2 mt-3">
@@ -166,7 +209,7 @@ export const TimerWidget = ({ onFocus }: WidgetProps) => {
         </button>
         <button 
           onClick={() => { setIsActive(false); setSeconds(1500); }}
-          className="text-[10px] text-[var(--text-muted)] hover:text-white transition-colors"
+          className="text-[10px] text-white/40 hover:text-white transition-colors"
         >
           RESET
         </button>
