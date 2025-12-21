@@ -8,7 +8,7 @@ export interface TodoItem {
 
 export type BlockType = 'callout' | 'text' | 'todo' | 'toggle' | 'video' | 'image' | 'embed' | 'timer';
 
-export interface LobbyBlock {
+export interface NotebookBlock {
   id: string;
   type: BlockType;
   width: string; // e.g., 'col-span-4'

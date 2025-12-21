@@ -15,29 +15,29 @@ import { CSS } from '@dnd-kit/utilities';
 import { WidgetWrapper } from './WidgetWrapper'; 
 import { TextBoxWidget, TodoWidget, TimerWidget, VideoWidget, CalloutWidget } from "./Widgets";
 
-interface LobbyBlock { 
+interface NotebookBlock { 
   id: string; 
   type: string; 
   data?: any;
   colorProps?: { text?: string; bg?: string; }; 
   autoFocus?: boolean;
 }
-interface LobbyColumn { id: string; width: number; blocks: LobbyBlock[]; }
-interface LobbyRow { id: string; columns: LobbyColumn[]; }
+interface NotebookColumn { id: string; width: number; blocks: NotebookBlock[]; }
+interface NotebookRow { id: string; columns: NotebookColumn[]; }
 interface PageData {
   id: string;
   title: string;
-  content: LobbyRow[];
+  content: NotebookRow[];
 }
 
 export const ModularDashboard = ({ 
     pageData, onSave 
   }: { 
     pageData: PageData; 
-    onSave: (id: string, newContent: LobbyRow[]) => void 
+    onSave: (id: string, newContent: NotebookRow[]) => void 
   }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [rows, setRows] = useState<LobbyRow[]>(pageData.content);
+  const [rows, setRows] = useState<NotebookRow[]>(pageData.content);
   const [focusTargetId, setFocusTargetId] = useState<string | null>(null);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [menuType, setMenuType] = useState<'slash' | null>(null);
@@ -47,7 +47,7 @@ export const ModularDashboard = ({
     setRows(pageData.content);
   }, [pageData.id, pageData.content]);
 
-  const updateAndSave = (updateFn: (prev: LobbyRow[]) => LobbyRow[]) => {
+  const updateAndSave = (updateFn: (prev: NotebookRow[]) => NotebookRow[]) => {
     const nextRows = updateFn(rows);
     setRows(nextRows);
     onSave(pageData.id, nextRows);
@@ -102,7 +102,7 @@ export const ModularDashboard = ({
     if (!over || active.id === over.id) return;
 
     updateAndSave(currentRows => {
-      let movedBlock: LobbyBlock | null = null;
+      let movedBlock: NotebookBlock | null = null;
       const rowsAfterRemoval = currentRows.map(row => ({
         ...row,
         columns: row.columns.map(col => {
@@ -120,7 +120,7 @@ export const ModularDashboard = ({
 
       if (over.id.toString().startsWith('dropzone-')) {
         const targetRowIndex = parseInt(over.id.toString().split('-')[1]);
-        const newRow: LobbyRow = {
+        const newRow: NotebookRow = {
           id: `row-${Date.now()}`,
           columns: [{ id: `c-${Date.now()}`, width: 100, blocks: [movedBlock] }]
         };
@@ -158,7 +158,7 @@ export const ModularDashboard = ({
       const blocksAbove = colToSplit.blocks.slice(0, blockIdx);
       const targetBlock = colToSplit.blocks[blockIdx];
       const blocksBelow = colToSplit.blocks.slice(blockIdx + 1);
-      const splitResult: LobbyRow[] = [];
+      const splitResult: NotebookRow[] = [];
 
       if (blocksAbove.length > 0) {
         splitResult.push({
@@ -284,7 +284,7 @@ export const ModularDashboard = ({
     });
   };
 
-  const renderBlock = (block: LobbyBlock, rowId: string, colId: string) => {
+  const renderBlock = (block: NotebookBlock, rowId: string, colId: string) => {
     const p = { 
       onFocus: () => setActiveBlockId(block.id), 
       onSlash: () => setMenuType('slash'),
