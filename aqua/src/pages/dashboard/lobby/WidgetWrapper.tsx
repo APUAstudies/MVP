@@ -1,19 +1,7 @@
-import { useState, useRef } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { useState } from "react";
 import { GripVertical, Plus, Columns, Trash2,
   Copy, ChevronRight, Paintbrush, RefreshCw } from "lucide-react";
-import { ModularDashboard } from "./ModularDashboard";
 
-export default function StudyLobby() {
-  const location = useLocation();
-  const isMainLobby = location.pathname.includes("/lobby");
-
-  return (
-    <div className="h-full w-full flex flex-col bg-[#0a0a0a]">
-      {isMainLobby ? <ModularDashboard /> : <Outlet />}
-    </div>
-  );
-}
 
 export const WidgetWrapper = ({ 
   children, onDelete, onAddBelow, onAddColumn, onDuplicate, onConvert, 

@@ -6,7 +6,9 @@ import Signup from "./pages/auth/Signup";
 import Dashboard from "./pages/dashboard/Dashboard";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
 
-import StudyLobby from "./pages/dashboard/lobby/Lobby";
+import StudyNotebook from "./pages/dashboard/lobby/Notebook";
+import { NotebookPage, NotebookHelp, NotebookHome } from "./pages/dashboard/lobby/NotebookViews";
+
 
 import { Tools } from "./pages/dashboard/tools/Tools";
 import { ToolsList } from "./pages/dashboard/tools/ToolsList";
@@ -29,11 +31,11 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
 
-          {/* lobby */}
-          <Route path="/lobby" element={<StudyLobby />}>
-            <Route index element={<div className="p-6 text-white">Main Study Room</div>} />
-            <Route path="help" element={<div className="p-6 text-white">Getting started</div>} />
-            <Route path="groups" element={<div className="p-6 text-white">Groups</div>} />
+          {/* notebook */}
+          <Route path="/notebook" element={<StudyNotebook />}>
+            <Route index element={<NotebookHome />} />
+            <Route path="help" element={<NotebookHelp />} />
+            <Route path="p/:pagename" element={<NotebookPage />} /> 
           </Route>
 
           {/* tools */}

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { 
   DndContext, 
   closestCorners, 
@@ -12,7 +12,7 @@ import {
   useSortable 
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { WidgetWrapper } from './Lobby'; 
+import { WidgetWrapper } from './WidgetWrapper'; 
 import { TextBoxWidget, TodoWidget, TimerWidget, VideoWidget, CalloutWidget } from "./Widgets";
 
 interface LobbyBlock { 
@@ -23,16 +23,34 @@ interface LobbyBlock {
 }
 interface LobbyColumn { id: string; width: number; blocks: LobbyBlock[]; }
 interface LobbyRow { id: string; columns: LobbyColumn[]; }
+interface PageData {
+  id: string;
+  title: string;
+  content: LobbyRow[];
+}
 
-export const ModularDashboard = () => {
+export const ModularDashboard = ({ 
+    pageData, onSave 
+  }: { 
+    pageData: PageData; 
+    onSave: (id: string, newContent: LobbyRow[]) => void 
+  }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [rows, setRows] = useState<LobbyRow[]>([
-    { id: "row-1", columns: [{ id: "c1", width: 100, blocks: [{ id: "b1", type: "text" }] }] }
-  ]);
+  const [rows, setRows] = useState<LobbyRow[]>(pageData.content);
   const [focusTargetId, setFocusTargetId] = useState<string | null>(null);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [menuType, setMenuType] = useState<'slash' | null>(null);
   const [filterText, setFilterText] = useState("");
+
+  useEffect(() => {
+    setRows(pageData.content);
+  }, [pageData.id, pageData.content]);
+
+  const updateAndSave = (updateFn: (prev: LobbyRow[]) => LobbyRow[]) => {
+    const nextRows = updateFn(rows);
+    setRows(nextRows);
+    onSave(pageData.id, nextRows);
+  };
 
   const blockOptions = [
     { id: 'text', label: 'Text' },
@@ -49,7 +67,7 @@ export const ModularDashboard = () => {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const selectBlock = (typeId: string) => {
-    setRows(prev => prev.map(r => ({
+    updateAndSave(prev => prev.map(r => ({
       ...r,
       columns: r.columns.map(c => ({
         ...c,
@@ -64,16 +82,20 @@ export const ModularDashboard = () => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    setRows(currentRows => {
+    updateAndSave(currentRows => {
       let movedBlock: LobbyBlock | null = null;
       const rowsAfterRemoval = currentRows.map(row => ({
         ...row,
         columns: row.columns.map(col => {
           const bIdx = col.blocks.findIndex(b => b.id === active.id);
-          if (bIdx !== -1) [movedBlock] = col.blocks.splice(bIdx, 1);
-          return { ...col, blocks: [...col.blocks] };
-        }).filter(col => col.blocks.length > 0 || row.columns.length > 1)
-      })).filter(r => r.columns.some(c => c.blocks.length > 0)); 
+          if (bIdx !== -1) {
+              const blocks = [...col.blocks];
+              [movedBlock] = blocks.splice(bIdx, 1);
+              return { ...col, blocks };
+          }
+          return col;
+        })
+      })); 
 
       if (!movedBlock) return currentRows;
 
@@ -91,13 +113,14 @@ export const ModularDashboard = () => {
       return rowsAfterRemoval.map(row => ({
         ...row,
         columns: row.columns.map(col => {
-          const overIdx = col.blocks.findIndex(b => b.id === over.id);
+          const blocks = [...col.blocks];
+          const overIdx = blocks.findIndex(b => b.id === over.id);
           if (overIdx !== -1) {
-            col.blocks.splice(overIdx, 0, movedBlock!);
+            blocks.splice(overIdx, 0, movedBlock!);
           } else if (col.id === over.id) {
-            col.blocks.push(movedBlock!);
+            blocks.push(movedBlock!);
           }
-          return { ...col, blocks: [...col.blocks] };
+          return { ...col, blocks };
         })
       }));
     });
@@ -105,7 +128,7 @@ export const ModularDashboard = () => {
   };
 
   const splitBlockToColumns = (rowIndex: number, colId: string, blockId: string) => {
-    setRows(prev => {
+    updateAndSave(prev => {
       const newRows = [...prev];
       const rowToSplit = newRows[rowIndex];
       const colToSplit = rowToSplit.columns.find(c => c.id === colId);
@@ -140,12 +163,12 @@ export const ModularDashboard = () => {
         });
       }
       newRows.splice(rowIndex, 1, ...splitResult);
-      return [...newRows];
+      return newRows;
     });
   };
 
   const deleteBlock = (rowId: string, colId: string, blockId: string) => {
-    setRows(prev => {
+    updateAndSave(prev => {
       let targetId: string | null = null;
       const row = prev.find(r => r.id === rowId);
       const col = row?.columns.find(c => c.id === colId);
@@ -166,7 +189,7 @@ export const ModularDashboard = () => {
   };
 
   const duplicateBlock = (rowId: string, colId: string, blockId: string) => {
-    setRows(prev => prev.map(row => {
+    updateAndSave(prev => prev.map(row => {
       if (row.id !== rowId) return row;
       return {
         ...row,
@@ -184,7 +207,7 @@ export const ModularDashboard = () => {
   };
 
   const updateBlockColor = (rowId: string, colId: string, blockId: string, colorClass: string, isBg: boolean) => {
-    setRows(prev => prev.map(row => row.id === rowId ? {
+    updateAndSave(prev => prev.map(row => row.id === rowId ? {
       ...row,
       columns: row.columns.map(col => col.id === colId ? {
         ...col,
@@ -197,7 +220,7 @@ export const ModularDashboard = () => {
   };
 
   const updateBlockType = (rowId: string, colId: string, blockId: string, newType: string) => {
-    setRows(prev => prev.map(row => row.id === rowId ? {
+    updateAndSave(prev => prev.map(row => row.id === rowId ? {
       ...row,
       columns: row.columns.map(col => col.id === colId ? {
         ...col,
@@ -207,7 +230,7 @@ export const ModularDashboard = () => {
   };
 
   const addBlockInColumn = (rowId: string, colId: string, blockId: string) => {
-    setRows(prev => prev.map(row => row.id === rowId ? {
+    updateAndSave(prev => prev.map(row => row.id === rowId ? {
       ...row,
       columns: row.columns.map(col => {
         if (col.id !== colId) return col;
@@ -220,7 +243,7 @@ export const ModularDashboard = () => {
   };
 
   const handleColumnResize = (rowIndex: number, colIndex: number, newWidth: number) => {
-    setRows(prev => {
+    updateAndSave(prev => {
       const newRows = [...prev];
       const row = newRows[rowIndex];
       const col = row.columns[colIndex];

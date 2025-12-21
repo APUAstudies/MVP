@@ -24,13 +24,13 @@ export const navLinks: NavItem[] = [
     ]
   },
   { 
-    label: 'Lobby',
-    href: '/lobby',
-    description: "Focus on tasks, write notes, and focus together with friends.",
+    label: 'Notebook',
+    href: '/notebook',
+    description: "Focus on tasks, write notes, and organize your learning.",
     icon: '📚',
     subItems: [
-      { label: 'Notebook', href: '/lobby', category: 'Study Tools' },
-      { label: 'Help', href: '/lobby/help', category: 'Study Tools' },
+      { label: 'Notebook', href: '/notebook', category: 'Study Tools' },
+      { label: 'Help & Guide', href: '/notebook/help', category: 'Study Tools' },
       { label: 'Groups', href: '/lobby/groups', category: 'Social' }
     ]
   },
