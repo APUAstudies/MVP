@@ -18,6 +18,7 @@ import { TextBoxWidget, TodoWidget, TimerWidget, VideoWidget, CalloutWidget } fr
 interface LobbyBlock { 
   id: string; 
   type: string; 
+  data?: any;
   colorProps?: { text?: string; bg?: string; }; 
   autoFocus?: boolean;
 }
@@ -76,6 +77,24 @@ export const ModularDashboard = ({
     })));
     setMenuType(null);
     setFilterText("");
+  };
+
+  const updateBlockData = (rowId: string, colId: string, blockId: string, newData: any) => {
+    updateAndSave(prev => prev.map(row => {
+      if (row.id !== rowId) return row;
+      return {
+        ...row,
+        columns: row.columns.map(col => {
+          if (col.id !== colId) return col;
+          return {
+            ...col,
+            blocks: col.blocks.map(block => 
+              block.id === blockId ? { ...block, data: newData } : block
+            )
+          };
+        })
+      };
+    }));
   };
 
   const handleManualReorder = (event: any) => {
@@ -197,7 +216,13 @@ export const ModularDashboard = ({
           if (col.id !== colId) return col;
           const idx = col.blocks.findIndex(b => b.id === blockId);
           if (idx === -1) return col;
-          const copy = { ...JSON.parse(JSON.stringify(col.blocks[idx])), id: `b-${Date.now()}` };
+          
+          const originalBlock = col.blocks[idx];
+          const copy = { 
+            ...JSON.parse(JSON.stringify(originalBlock)), 
+            id: `b-${Date.now()}` 
+          };
+
           const newBlocks = [...col.blocks];
           newBlocks.splice(idx + 1, 0, copy);
           return { ...col, blocks: newBlocks };
@@ -270,6 +295,8 @@ export const ModularDashboard = ({
       onAddBelow: () => addBlockInColumn(rowId, colId, block.id),
       onDeleteBlock: () => deleteBlock(rowId, colId, block.id),
       onConvertToText: () => updateBlockType(rowId, colId, block.id, 'text'),
+      data: block.data || {},
+      updateData: (newData: any) => updateBlockData(rowId, colId, block.id, newData),
       colorProps: block.colorProps
     };
 

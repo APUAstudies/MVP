@@ -1,6 +1,7 @@
 import { Link, Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useState } from "react";
 import { navLinks } from "../../configs/navConfig";
+import { INITIAL_NOTEBOOK_CONTENT, NOTEBOOK_MAIN_ID } from "../../configs/noteConfig";
 import { TopNav } from "./TopNav";
 import { FileText, Plus } from "lucide-react";
 
@@ -50,6 +51,26 @@ export const DashboardLayout = () => {
   const currentPage = pages.find((p: any) => 
     location.pathname.includes(p.title.toLowerCase().replace(/\s+/g, '-'))
   ) || pages[0];
+
+  const handleResetMainPage = () => {
+  if (window.confirm("Are you sure? This will only reset the Main Lobby. Your other pages will not be affected.")) {
+    setPages((prevPages: any[]) => {
+      const newPages = prevPages.map((p) => {
+        if (p.id === NOTEBOOK_MAIN_ID) {
+          return { 
+            ...p, 
+            content: JSON.parse(JSON.stringify(INITIAL_NOTEBOOK_CONTENT)) 
+          };
+        }
+        return p;
+      });
+      localStorage.setItem("user_pages", JSON.stringify(newPages));
+      return newPages;
+    });
+    
+    alert("Main Lobby has been reset!");
+  }
+};
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
@@ -161,7 +182,7 @@ export const DashboardLayout = () => {
 
         {/* main area */}
         <main className="flex-1 overflow-y-auto bg-[#121212]">
-          <Outlet context={{ pages, handleCreatePage, currentPage, handleSavePage }} />
+          <Outlet context={{ pages, handleCreatePage, currentPage, handleSavePage, handleResetMainPage }} />
         </main>
       </div>
     </div>

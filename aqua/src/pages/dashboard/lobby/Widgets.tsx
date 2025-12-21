@@ -29,63 +29,51 @@ interface WidgetProps {
 }
 
 // --- CALLOUT ---
-export const CalloutWidget = (props: WidgetProps) => {
+export const CalloutWidget = ({ data, updateData, ...props }: any) => {
   return (
     <div className={`flex gap-3 items-start p-4 rounded-lg w-full ${props.colorProps?.bg || 'bg-white/5'}`}>
-      
       <div className="flex-1 w-full">
-        <TextBoxWidget {...props}/>
+        <TextBoxWidget data={data} updateData={updateData} {...props}/>
       </div>
     </div>
   );
 };
 
-// --- TEXT BOX ---
 export const TextBoxWidget = ({ 
-  onFocus, onSlash, setFilterText, onCommandEnter, onCancelSlash, onAddBelow, onDeleteBlock, autoFocus, colorProps
-}: WidgetProps) => {
-  const [text, setText] = useState("");
-  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+  data, updateData, onFocus, onSlash, setFilterText, onCommandEnter, onCancelSlash, onAddBelow, onDeleteBlock, autoFocus, colorProps
+}: any) => {
+  const divRef = useRef<HTMLDivElement>(null);
+  const lastHtmlRef = useRef(data?.text || "");
 
   useEffect(() => {
-    if (autoFocus && textAreaRef.current) {
-      textAreaRef.current.focus();
-      const length = textAreaRef.current.value.length;
-      textAreaRef.current.setSelectionRange(length, length);
+    if (divRef.current && data?.text !== divRef.current.innerHTML) {
+      divRef.current.innerHTML = data?.text || "";
+      lastHtmlRef.current = data?.text || "";
+    }
+  }, [data?.id]);
+
+  useEffect(() => {
+    if (autoFocus && divRef.current) {
+      divRef.current.focus();
+      const range = document.createRange();
+      const sel = window.getSelection();
+      range.selectNodeContents(divRef.current);
+      range.collapse(false);
+      sel?.removeAllRanges();
+      sel?.addRange(range);
     }
   }, [autoFocus]);
 
-  useEffect(() => {
-    if (textAreaRef.current) {
-      textAreaRef.current.style.height = "auto";
-      textAreaRef.current.style.height = textAreaRef.current.scrollHeight + "px";
-    }
-  }, [text]);
+  const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
+    const currentHtml = e.currentTarget.innerHTML;
+    const currentText = e.currentTarget.innerText;
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && text.includes('/')) {
-      e.preventDefault();
-      onCommandEnter?.();
-      return;
-    }
+    lastHtmlRef.current = currentHtml;
+    updateData({ text: currentHtml });
 
-    if (e.key === 'Enter' && text.trim() === "") {
-      e.preventDefault();
-      onAddBelow?.();
-    }
-
-    if (e.key === 'Backspace' && text === "") {
-      e.preventDefault();
-      onDeleteBlock?.();
-    }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const val = e.target.value;
-    setText(val);
-    const lastSlashIndex = val.lastIndexOf('/');
+    const lastSlashIndex = currentText.lastIndexOf('/');
     if (lastSlashIndex !== -1) {
-      const query = val.slice(lastSlashIndex + 1);
+      const query = currentText.slice(lastSlashIndex + 1);
       if (!query.includes(' ')) {
         setFilterText?.(query);
         onSlash?.();
@@ -95,16 +83,38 @@ export const TextBoxWidget = ({
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    const text = divRef.current?.innerText || "";
+    if (e.key === 'Enter' && text.includes('/')) {
+      e.preventDefault();
+      onCommandEnter?.();
+      return;
+    }
+    if (e.key === 'Enter' && !e.shiftKey) {
+      if (text.trim() === "" || text === "/") {
+        e.preventDefault();
+        onAddBelow?.();
+      }
+    }
+    if (e.key === 'Backspace' && text === "") {
+      e.preventDefault();
+      onDeleteBlock?.();
+    }
+  };
+
   return (
-    <textarea 
-      ref={textAreaRef}
-      value={text}
+    <div 
+      ref={divRef}
+      contentEditable
+      suppressContentEditableWarning
+      onInput={handleInput}
       onFocus={onFocus}
       onKeyDown={handleKeyDown}
-      onChange={handleChange}
       onBlur={() => setTimeout(() => onCancelSlash?.(), 200)}
-      placeholder="Type '/' for commands..."
-      className={`w-full bg-transparent border-none outline-none resize-none text-sm min-h-[30px] flex items-center ${colorProps?.text || 'text-white'}`}
+      data-placeholder="Type '/' for commands..."
+      className={`w-full bg-transparent border-none outline-none text-sm min-h-[30px] 
+        empty:before:content-[attr(data-placeholder)] empty:before:text-white/20 
+        px-1 py-1 ${colorProps?.text || 'text-white'}`}
     />
   );
 };
