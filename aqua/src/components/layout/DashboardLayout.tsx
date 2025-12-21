@@ -39,7 +39,6 @@ export const DashboardLayout = () => {
 
         {/* sub pages */}
         <aside className="w-64 border-r border-[var(--border-color)] bg-[var(--bg-sidebar-text)] hidden md:flex flex-col">
-          {/* label & description */}
           <div className="p-4 border-b border-[var(--border-color)] flex flex-col gap-1">
             <h2 className="font-semibold text-sm text-[var(--text-main)]">
               {activeMainItem.label}

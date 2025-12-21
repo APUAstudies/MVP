@@ -16,18 +16,10 @@ export default function StudyLobby() {
 }
 
 export const WidgetWrapper = ({ 
-  children, 
-  onDelete, 
-  onAddBelow, 
-  onAddColumn, 
-  onDuplicate,
-  onConvert,
-  onUpdateColor,
-  onResize, 
-  dragHandleProps, 
-  showResizer,
-  colorProps
+  children, onDelete, onAddBelow, onAddColumn, onDuplicate, onConvert, 
+  onUpdateColor, onResize, dragHandleProps, showResizer, colorProps 
 }: any) => {
+  const [isResizing, setIsResizing] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [activeSubMenu, setActiveSubMenu] = useState<'turn' | 'color' | null>(null);
 
@@ -54,8 +46,55 @@ export const WidgetWrapper = ({
     ]
   };
 
+const handleMouseDown = (e: React.MouseEvent) => {
+  e.preventDefault();
+  
+  const colElement = e.currentTarget.closest('.relative.flex.flex-col') as HTMLElement;
+  if (!colElement) return;
+
+  setIsResizing(true);
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+
+  const startX = e.pageX;
+  const startWidthPx = colElement.getBoundingClientRect().width;
+  const parentWidthPx = colElement.parentElement?.getBoundingClientRect().width || window.innerWidth;
+  const startWidthPercent = (startWidthPx / parentWidthPx) * 100;
+
+  const onMouseMove = (moveEvent: MouseEvent) => {
+    const deltaPx = moveEvent.pageX - startX;
+    const deltaPercent = (deltaPx / parentWidthPx) * 100;
+    const newWidth = startWidthPercent + deltaPercent;
+    onResize(newWidth);
+  };
+
+  const onMouseUp = () => {
+    setIsResizing(false);
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+  };
+
+  document.addEventListener("mousemove", onMouseMove);
+  document.addEventListener("mouseup", onMouseUp);
+};
+
+
   return (
-    <div className="group relative flex gap-0 w-full items-start transition-all duration-200">
+    <div className={`group relative flex gap-0 w-full items-start transition-all duration-200 rounded-lg ${colorProps?.bg || ''}`}>
+      
+      {/* resizer */}
+      {showResizer && (
+        <div 
+          onMouseDown={handleMouseDown}
+          className="absolute -right-[12px] top-0 bottom-0 w-[24px] z-[100] cursor-col-resize group/resizer flex justify-center items-center"
+        >
+          <div className={`w-[2px] h-[80%] rounded-full transition-colors duration-150 
+            ${isResizing ? 'bg-blue-500' : 'bg-transparent group-hover/resizer:bg-white/20'}
+          `} />
+        </div>
+      )}
 
       <div className="flex items-center shrink-0 min-h-[32px]">
         <button 

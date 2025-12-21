@@ -3,7 +3,7 @@ export interface TodoItem {
   text: string;
   completed: boolean;
   indent: number; // 0 = main level, 1 = indented once, etc.
-  parentId?: string; // Optional: if you want to link sub-tasks to parents
+  parentId?: string;
 }
 
 export type BlockType = 'callout' | 'text' | 'todo' | 'toggle' | 'video' | 'image' | 'embed' | 'timer';

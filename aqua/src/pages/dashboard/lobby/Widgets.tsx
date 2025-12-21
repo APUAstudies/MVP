@@ -34,10 +34,7 @@ export const CalloutWidget = (props: WidgetProps) => {
     <div className={`flex gap-3 items-start p-4 rounded-lg w-full ${props.colorProps?.bg || 'bg-white/5'}`}>
       
       <div className="flex-1 w-full">
-        <TextBoxWidget 
-          {...props} 
-          placeholder="Callout text... Type '/' for commands"
-        />
+        <TextBoxWidget {...props}/>
       </div>
     </div>
   );
@@ -207,17 +204,14 @@ export const TodoWidget = ({ colorProps, onConvertToText }: any) => {
     if (e.key === "Backspace") {
       if (taskText === "") {
         e.preventDefault();
-        // If indented, move back one level instead of deleting
         if (taskIndent > 0) {
           setTasks(prev => prev.map(t => t.id === taskId ? { ...t, indent: t.indent - 1 } : t));
           return;
         }
-        // If only one task left, convert back to text block
         if (tasks.length === 1) {
           onConvertToText?.(); 
           return;
         }
-        // Otherwise delete the line
         setTasks(prev => prev.filter(t => t.id !== taskId));
       }
     }
@@ -230,7 +224,6 @@ export const TodoWidget = ({ colorProps, onConvertToText }: any) => {
         const oldIndex = items.findIndex((t) => t.id === active.id);
         const newIndex = items.findIndex((t) => t.id === over.id);
         const newItems = arrayMove(items, oldIndex, newIndex);
-        // Match the indent of the item it was dropped on
         newItems[newIndex] = { ...newItems[newIndex], indent: items[newIndex].indent };
         return newItems;
       });
@@ -258,19 +251,17 @@ export const TodoWidget = ({ colorProps, onConvertToText }: any) => {
   );
 };
 
-// Internal component for clean drag-and-drop
 const SortableTodoItem = ({ task, tasks, setTasks, handleKeyDown, colorProps }: any) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
   const style = { 
     transform: CSS.Translate.toString(transform), 
     transition, 
     opacity: isDragging ? 0.3 : 1,
-    paddingLeft: `${task.indent * 20}px` // Applies the visual indentation
+    paddingLeft: `${task.indent * 20}px`
   };
 
   return (
     <div ref={setNodeRef} style={style} className="group/item flex items-center gap-1 py-0.5 w-full">
-      {/* Icon only shows when hovering THIS specific line */}
       <div 
         {...attributes} {...listeners} 
         className="opacity-0 group-hover/item:opacity-100 p-1 text-white/20 hover:text-white/60 cursor-grab"

@@ -48,8 +48,6 @@ export const ModularDashboard = () => {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
-  // --- RESTORED & UPDATED FUNCTIONS ---
-
   const selectBlock = (typeId: string) => {
     setRows(prev => prev.map(r => ({
       ...r,
@@ -221,6 +219,23 @@ export const ModularDashboard = () => {
     } : row));
   };
 
+  const handleColumnResize = (rowIndex: number, colIndex: number, newWidth: number) => {
+    setRows(prev => {
+      const newRows = [...prev];
+      const row = newRows[rowIndex];
+      const col = row.columns[colIndex];
+      const nextCol = row.columns[colIndex + 1];
+
+      if (col && nextCol) {
+        const totalWidth = col.width + nextCol.width;
+        const clampedWidth = Math.min(Math.max(newWidth, 10), totalWidth - 10);
+        col.width = clampedWidth;
+        nextCol.width = totalWidth - clampedWidth;
+      }
+      return newRows;
+    });
+  };
+
   const renderBlock = (block: LobbyBlock, rowId: string, colId: string) => {
     const p = { 
       onFocus: () => setActiveBlockId(block.id), 
@@ -266,19 +281,21 @@ export const ModularDashboard = () => {
           {rows.map((row, rIdx) => (
             <div key={row.id} className="flex flex-col w-full">
               <div className="flex gap-4 w-full items-start">
-                {row.columns.map((col) => (
-                  <div key={col.id} style={{ width: `${col.width}%` }} className="flex flex-col gap-2 min-h-[50px]">
+                {row.columns.map((col, cIdx) => (
+                  <div key={col.id} style={{ width: `${col.width}%` }} className="relative flex flex-col gap-2 min-h-[50px]">
                     <SortableContext items={col.blocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
                       {col.blocks.map(block => (
                         <SortableItem 
                           key={block.id} 
-                          block={block} 
+                          block={block}
                           onDelete={() => deleteBlock(row.id, col.id, block.id)}
                           onAddBelow={() => addBlockInColumn(row.id, col.id, block.id)}
                           onAddColumn={() => splitBlockToColumns(rIdx, col.id, block.id)}
                           onDuplicate={() => duplicateBlock(row.id, col.id, block.id)}
                           onConvert={(type: string) => updateBlockType(row.id, col.id, block.id, type)}
                           onUpdateColor={(color: string, isBg: boolean) => updateBlockColor(row.id, col.id, block.id, color, isBg)}
+                          onResize={(newWidth: number) => handleColumnResize(rIdx, cIdx, newWidth)}
+                          showResizer={cIdx < row.columns.length - 1}
                           renderBlock={() => renderBlock(block, row.id, col.id)}
                         />
                       ))}
@@ -303,7 +320,7 @@ const RowDropZone = ({ id }: { id: string }) => {
 };
 
 export const SortableItem = ({ 
-  block, onDelete, onAddBelow, onAddColumn, onDuplicate, onConvert, onUpdateColor, renderBlock 
+  block, onDelete, onAddBelow, onAddColumn, onDuplicate, onConvert, onUpdateColor, onResize, showResizer, renderBlock 
 }: any) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.id });
   const style = { transform: CSS.Translate.toString(transform), transition, opacity: isDragging ? 0.3 : 1 };
@@ -316,6 +333,8 @@ export const SortableItem = ({
         onAddColumn={onAddColumn}
         onDuplicate={onDuplicate}
         onConvert={onConvert}
+        onResize={onResize}
+        showResizer={showResizer}
         onUpdateColor={onUpdateColor}
         colorProps={block.colorProps}
         dragHandleProps={{ ...attributes, ...listeners }}
