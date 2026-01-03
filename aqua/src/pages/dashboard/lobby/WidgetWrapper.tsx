@@ -5,11 +5,12 @@ import { GripVertical, Plus, Columns, Trash2,
 
 export const WidgetWrapper = ({ 
   children, onDelete, onAddBelow, onAddColumn, onDuplicate, onConvert, 
-  onUpdateColor, onResize, dragHandleProps, showResizer, colorProps 
+  onUpdateColor, onResize, dragHandleProps, showResizer, colorProps, isNested = false
 }: any) => {
   const [isResizing, setIsResizing] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [activeSubMenu, setActiveSubMenu] = useState<'turn' | 'color' | null>(null);
+  const [isHovered, setIsHovered] = useState(false);
 
   const blockOptions = [
     { id: 'text', label: 'Text' },
@@ -69,8 +70,14 @@ const handleMouseDown = (e: React.MouseEvent) => {
 };
 
 
+  const hoverClass = isNested ? (isHovered ? 'opacity-100' : 'opacity-0') : 'opacity-0 group-hover:opacity-100';
+
   return (
-    <div className={`group relative flex gap-0 w-full items-start transition-all duration-200 rounded-lg ${colorProps?.bg || ''}`}>
+    <div
+      className={`group relative flex gap-0 w-full items-start transition-all duration-200 rounded-lg ${colorProps?.bg || ''}`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       
       {/* resizer */}
       {showResizer && (
@@ -86,8 +93,11 @@ const handleMouseDown = (e: React.MouseEvent) => {
 
       <div className="flex items-center shrink-0 min-h-[32px]">
         <button 
-          onClick={onAddBelow} 
-          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/5 rounded text-white/30 hover:text-white transition-all">
+          onClick={(e) => {
+          e.stopPropagation(); 
+          onAddBelow();}}
+          className={`${hoverClass} p-1 hover:bg-white/5 rounded text-white/30 hover:text-white transition-all`}
+        >
           <Plus size={16} />
         </button>
 
@@ -95,7 +105,8 @@ const handleMouseDown = (e: React.MouseEvent) => {
           <button 
             {...dragHandleProps}
             onClick={() => setShowMenu(!showMenu)}
-            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/5 rounded text-white/30 hover:text-white transition-all">
+            className={`${hoverClass} p-1 hover:bg-white/5 rounded text-white/30 hover:text-white transition-all`}
+          >
             <GripVertical size={18} />
           </button>
 

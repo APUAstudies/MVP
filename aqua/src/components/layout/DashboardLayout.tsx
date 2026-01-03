@@ -21,16 +21,22 @@ export const DashboardLayout = () => {
     ];
   });
 
+  type NotebookPage = {
+    id: string;
+    title: string;
+    content: unknown;
+  };
+
   const activeMainItem = navLinks.find((link) => 
     location.pathname.startsWith(link.href)
   ) || navLinks[0];
 
-  const currentPage = pages.find((p: any) => {
+  const currentPage = (pages as NotebookPage[]).find((p: NotebookPage) => {
     const isLobby = p.id === NOTEBOOK_MAIN_ID;
     const lobbyPath = "/notebook";
     const customPath = `/notebook/p/${p.title.toLowerCase().replace(/\s+/g, '-')}`;
     return isLobby ? location.pathname === lobbyPath : location.pathname === customPath; 
-  }) || pages.find(p => p.id === NOTEBOOK_MAIN_ID);
+  }) || (pages as NotebookPage[]).find(p => p.id === NOTEBOOK_MAIN_ID);
 
   const handleCreatePage = () => {
     const title = prompt("Enter page name:");
@@ -48,9 +54,9 @@ export const DashboardLayout = () => {
     navigate(`/notebook/p/${title.toLowerCase().replace(/\s+/g, '-')}`);
   };
 
-  const handleSavePage = (id: string, newContent: any) => {
-    setPages((prev: any) => {
-      const updated = prev.map((p: any) => p.id === id ? { ...p, content: newContent } : p);
+  const handleSavePage = (id: string, newContent: unknown) => {
+    setPages((prev: NotebookPage[]) => {
+      const updated = prev.map((p) => p.id === id ? { ...p, content: newContent } : p);
       localStorage.setItem("user_pages", JSON.stringify(updated));
       return updated;
     });
@@ -140,7 +146,7 @@ export const DashboardLayout = () => {
 
                       {isPagesExpanded && (
                         <div className="ml-4 mt-1 flex flex-col gap-0.5 border-l border-white/10">
-                          {pages.map((page: any) => {
+                          {(pages as NotebookPage[]).map((page: NotebookPage) => {
                             const isLobbyItem = page.id === NOTEBOOK_MAIN_ID;
                             const pageHref = isLobbyItem ? "/notebook" : `/notebook/p/${page.title.toLowerCase().replace(/\s+/g, '-')}`;
                             const isPageActive = location.pathname === pageHref;

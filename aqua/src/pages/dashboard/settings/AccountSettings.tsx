@@ -1,7 +1,4 @@
-import { useState } from "react";
-
 export const AccountSettings = () => {
-  const [notionConnected, setNotionConnected] = useState(false);
 
   return (
     <div className="space-y-8">

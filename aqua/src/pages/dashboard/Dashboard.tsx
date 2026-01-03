@@ -12,7 +12,10 @@ export default function Home() {
 		<div className="p-8">
 			{user ? (
 				<>
-					<p>Welcome, {user.email}</p><br/>
+					{(() => {
+						const u = user as unknown as { email?: string };
+						return <p>Welcome, {u?.email ?? 'user'}</p>;
+					})()}<br/>
 					<h1>THIS IS THE DASHBOARD</h1>
 					<button
 						onClick={async () => {

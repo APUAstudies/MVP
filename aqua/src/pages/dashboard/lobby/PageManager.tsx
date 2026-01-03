@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { useParams } from "react-router-dom";
 import { ModularDashboard } from "./ModularDashboard";
 
 const INITIAL_PAGE_CONTENT = [
@@ -8,7 +8,6 @@ const INITIAL_PAGE_CONTENT = [
 
 export const PageManager = () => {
   const { pagename } = useParams();
-  const navigate = useNavigate();
   const [pages, setPages] = useState(() => {
     const saved = localStorage.getItem("user_pages");
     return saved ? JSON.parse(saved) : [
@@ -21,28 +20,16 @@ export const PageManager = () => {
   ) || pages[0];
 
   const handleSave = (id: string, newContent: any) => {
-    const updatedPages = pages.map((p: any) => 
-      p.id === id ? { ...p, content: newContent } : p
-    );
-    setPages(updatedPages);
-    localStorage.setItem("user_pages", JSON.stringify(updatedPages));
-  };
+		setPages((prevPages: any) => {
+			const updated = prevPages.map((p: any) => 
+				p.id === id ? { ...p, content: newContent } : p
+			);
+			localStorage.setItem("user_pages", JSON.stringify(updated));
+			return updated;
+		});
+	};
 
-  const createNewPage = () => {
-    const newName = prompt("Enter page title:");
-    if (!newName) return;
-
-    const newPage = {
-      id: `page-${Date.now()}`,
-      title: newName,
-      content: INITIAL_PAGE_CONTENT
-    };
-
-    const updatedPages = [...pages, newPage];
-    setPages(updatedPages);
-    localStorage.setItem("user_pages", JSON.stringify(updatedPages));
-    navigate(`/pages/${newName.toLowerCase()}`);
-  };
+  
 
   return (
     <div className="flex h-full w-full">
